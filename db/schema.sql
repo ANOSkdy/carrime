@@ -44,6 +44,7 @@ create table if not exists resume_drafts (
   self_pr text,
   summary text,
   profile_photo_url text,
+  step5_completed_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

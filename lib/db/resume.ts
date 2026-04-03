@@ -13,6 +13,8 @@ export type Resume = BaseResume & {
   profilePhotoUrl?: string | null;
   created_at?: string;
   updated_at?: string;
+  step5_completed_at?: string | null;
+  step5_completed?: boolean;
 };
 
 type ResumeUpdateFields = Partial<Omit<Resume, 'id' | 'createdTime'>>;
@@ -106,6 +108,8 @@ const mapDbResume = (row: Record<string, unknown>): Resume => {
     createdTime: typeof row.created_at === 'string' ? row.created_at : undefined,
     created_at: typeof row.created_at === 'string' ? row.created_at : undefined,
     updated_at: typeof row.updated_at === 'string' ? row.updated_at : undefined,
+    step5_completed_at: typeof row.step5_completed_at === 'string' ? row.step5_completed_at : null,
+    step5_completed: row.step5_completed_at != null,
   };
 };
 
@@ -307,7 +311,7 @@ export async function saveResumeDraft(payload: z.infer<typeof ResumeSchema>) {
 }
 
 export async function patchResumeDraft(payload: ResumePatchPayload): Promise<Resume> {
-  const { resume_id, ...rest } = payload;
+  const { resume_id, step5_complete, ...rest } = payload;
   const values = mapResumeToAirtableFields(rest);
 
   const desiredPayload = {
@@ -371,6 +375,10 @@ export async function patchResumeDraft(payload: ResumePatchPayload): Promise<Res
     params.push(dob);
     setClauses.push(`dob = $${index}`);
     index += 1;
+  }
+
+  if (step5_complete) {
+    setClauses.push('step5_completed_at = coalesce(step5_completed_at, now())');
   }
 
   const result = await withTransaction(async (client) => {

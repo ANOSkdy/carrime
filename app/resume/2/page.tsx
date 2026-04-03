@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/Button';
-import { ensureResumeId, hasPendingResumeSave, retryPendingResumeSave, saveResumeInBackground } from '@/lib/storage/resume-save';
+import { ensureResumeId, hasPendingResumeSave, retryPendingResumeSave, saveResumePatchInBackground } from '@/lib/storage/resume-save';
 
 type FormData = {
   job_change_count: number;
@@ -48,7 +48,7 @@ export default function ResumeStep2() {
       ...data,
     };
 
-    saveResumeInBackground('PATCH', payload);
+    saveResumePatchInBackground(payload);
     router.push('/resume/3');
   };
 

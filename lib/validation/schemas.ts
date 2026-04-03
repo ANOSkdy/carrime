@@ -93,6 +93,7 @@ export const ResumeSchema = z.object({
 
 export const ResumePatchSchema = ResumeSchema.partial().extend({
   resume_id: z.string().min(1, "resume_id is required"),
+  step5_complete: z.boolean().optional(),
 });
 
 // 学歴

@@ -115,3 +115,7 @@ export function saveResumeInBackground(method: PendingSave['method'], payload: R
       });
     });
 }
+
+export function saveResumePatchInBackground(payload: Record<string, unknown>) {
+  saveResumeInBackground('PATCH', payload);
+}
