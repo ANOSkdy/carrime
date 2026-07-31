@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { z } from 'zod';
-import { createStep5NotificationRecord } from '@/lib/airtable/notification';
 import { query, withTransaction } from '@/lib/db/postgres';
+import { sendResumeStep5Notification } from '@/lib/email/resume-notification';
 import { ResumePatchSchema, ResumeSchema } from '@/lib/validation/schemas';
 
 type BaseResume = z.infer<typeof ResumeSchema>;
@@ -321,7 +321,7 @@ export async function saveResumeDraft(payload: z.infer<typeof ResumeSchema>) {
 export async function patchResumeDraft(payload: ResumePatchPayload): Promise<Resume> {
   const { resume_id, step5_complete, ...rest } = payload;
   const values = mapResumeToDbFields(rest);
-  let shouldCreateStep5Notification = false;
+  let shouldSendStep5Notification = false;
 
   const desiredPayload = {
     desired_occupations: payload.desired_occupations,
@@ -392,7 +392,8 @@ export async function patchResumeDraft(payload: ResumePatchPayload): Promise<Res
 
   const result = await withTransaction(async (client) => {
     const { rows: existingRows } = await client.query<Record<string, unknown>>(
-      `select id, step5_completed_at from resume_drafts where resume_id = $1 limit 1 for update`,
+      `select id, step5_completed_at, admin_notified_at
+       from resume_drafts where resume_id = $1 limit 1 for update`,
       [resume_id]
     );
 
@@ -401,10 +402,7 @@ export async function patchResumeDraft(payload: ResumePatchPayload): Promise<Res
       throw new Error('Resume not found for patch');
     }
 
-    const isFirstStep5Completion = Boolean(step5_complete) && existingRow.step5_completed_at == null;
-    if (isFirstStep5Completion) {
-      shouldCreateStep5Notification = true;
-    }
+    shouldSendStep5Notification = step5_complete === true && existingRow.admin_notified_at == null;
 
     let row: Record<string, unknown> | undefined;
 
@@ -433,11 +431,11 @@ export async function patchResumeDraft(payload: ResumePatchPayload): Promise<Res
     return row;
   });
 
-  if (shouldCreateStep5Notification) {
+  if (shouldSendStep5Notification) {
     const correlationId = randomUUID();
 
     try {
-      await createStep5NotificationRecord(resume_id);
+      await sendResumeStep5Notification(resume_id);
       await query(
         `update resume_drafts
          set admin_notified_at = coalesce(admin_notified_at, now()),
@@ -447,16 +445,18 @@ export async function patchResumeDraft(payload: ResumePatchPayload): Promise<Res
         [resume_id]
       );
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Unknown Airtable notification error';
-      const safeError = message.slice(0, 500);
+      const name = error instanceof Error ? error.name : 'Error';
+      const message = error instanceof Error ? error.message : 'Unknown Resend notification error';
+      const safeError = `${name}: ${message}`.replace(/[\u0000-\u001f\u007f]+/g, ' ').slice(0, 500);
 
-      console.error('Step5 Airtable notification error', { correlationId, resumeId: resume_id, message: safeError });
+      console.error('Step5 Resend notification error', { correlationId, resumeId: resume_id, message: safeError });
 
       await query(
         `update resume_drafts
          set admin_notification_error = $2,
              updated_at = now()
-         where resume_id = $1`,
+         where resume_id = $1
+           and admin_notified_at is null`,
         [resume_id, safeError]
       );
     }
