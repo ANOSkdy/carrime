@@ -11,8 +11,7 @@ function getGeminiModel() {
 
   if (!geminiModel) {
     const genAI = new GoogleGenerativeAI(apiKey);
-    // 指定されたモデル 'gemini-3-flash-preview' を使用
-    geminiModel = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
+    geminiModel = genAI.getGenerativeModel({ model: 'gemini-3.5-flash-lite' });
   }
 
   return geminiModel;
