@@ -108,3 +108,13 @@ create index if not exists idx_resume_educations_resume_id_sort on resume_educat
 create index if not exists idx_resume_works_resume_id_sort on resume_works(resume_id, sort_order);
 create index if not exists idx_resume_desired_conditions_resume_type_sort on resume_desired_conditions(resume_id, condition_type, sort_order);
 create index if not exists idx_lookup_items_category_display_order on lookup_items(category_id, display_order);
+
+create table if not exists zip_codes (
+  postal_code char(7) not null,
+  prefecture text not null,
+  city text not null,
+  town text not null default '',
+  primary key (postal_code, town)
+);
+
+create index if not exists idx_zip_codes_postal_code on zip_codes(postal_code);

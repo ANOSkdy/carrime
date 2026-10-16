@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -11,6 +11,7 @@ import { Input } from '@/components/form/Input';
 import { Textarea } from '@/components/form/Textarea';
 import { Select } from '@/components/ui/Select';
 import { BRAND_STORAGE_KEYS, getStorageItemWithLegacyFallback } from '@/lib/storage/branding';
+import { isCompletePostalCode, normalizePostalCode } from '@/lib/address/postal-code';
 import { ensureResumeId, hasPendingResumeSave, retryPendingResumeSave, saveResumeInBackground } from '@/lib/storage/resume-save';
 
 const formSchema = ResumeSchema.omit({ user_id: true });
@@ -60,6 +61,8 @@ export default function ResumeStep1() {
     watch,
     reset,
     setValue,
+    getValues,
+    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<FormInput>({
     resolver: zodResolver(formSchema),
@@ -69,6 +72,9 @@ export default function ResumeStep1() {
   const hasSpouse = watch('has_spouse');
   const [useSeparateContact, setUseSeparateContact] = useState(false);
   const [isRetryingSave, setIsRetryingSave] = useState(false);
+  const [zipStatus, setZipStatus] = useState<'idle' | 'loading' | 'notfound' | 'error'>('idle');
+  const [autoFilled, setAutoFilled] = useState(false);
+  const lastLookedUp = useRef('');
 
   useEffect(() => {
     const resumeId = ensureResumeId();
@@ -136,6 +142,41 @@ export default function ResumeStep1() {
       setValue('contactAddress', '');
       setValue('contactPhone', '');
       setValue('contactEmail', '');
+    }
+  };
+
+  const lookupPostalCode = async (raw: string) => {
+    if (!isCompletePostalCode(raw)) {
+      setZipStatus('idle');
+      return;
+    }
+    const code = normalizePostalCode(raw);
+    if (code === lastLookedUp.current) return;
+    lastLookedUp.current = code;
+    setZipStatus('loading');
+
+    try {
+      const res = await fetch('/api/data/zipcode?code=' + code);
+      if (lastLookedUp.current !== code) return;
+      if (res.status === 404) {
+        setZipStatus('notfound');
+        return;
+      }
+      if (!res.ok) throw new Error('lookup failed');
+
+      const data = (await res.json()) as { prefecture: string; city: string; towns: string[] };
+      setValue('address_prefecture', data.prefecture, { shouldValidate: true });
+      setValue('address_city', data.city, { shouldValidate: true });
+      // 町域が一意に決まる場合のみ番地欄の先頭へ補完する(既入力は上書きしない)
+      if (data.towns.length === 1 && !getValues('address_line1')?.trim()) {
+        setValue('address_line1', data.towns[0], { shouldValidate: true });
+      }
+      setZipStatus('idle');
+      setAutoFilled(true);
+      setTimeout(() => setAutoFilled(false), 1600);
+      setFocus('address_line1');
+    } catch {
+      if (lastLookedUp.current === code) setZipStatus('error');
     }
   };
 
@@ -235,8 +276,19 @@ export default function ResumeStep1() {
         <div className="grid grid-cols-1 gap-x-3 @md:grid-cols-2">
           <Input
             label="郵便番号"
-            {...register('postal_code')}
-            error={errors.postal_code?.message}
+            {...register('postal_code', {
+              onChange: (e: React.ChangeEvent<HTMLInputElement>) => void lookupPostalCode(e.target.value),
+            })}
+            loading={zipStatus === 'loading'}
+            error={
+              errors.postal_code?.message ??
+              (zipStatus === 'notfound'
+                ? '該当する住所が見つかりません。手入力してください'
+                : zipStatus === 'error'
+                  ? '住所を取得できませんでした。手入力してください'
+                  : undefined)
+            }
+            hint="7桁を入力すると住所が自動入力されます"
             placeholder="0600001"
             inputMode="numeric"
             autoComplete="postal-code"
@@ -248,6 +300,7 @@ export default function ResumeStep1() {
             error={errors.address_prefecture?.message}
             placeholder="北海道"
             autoComplete="address-level1"
+            className={autoFilled ? 'bg-blue-50!' : ''}
           />
         </div>
 
@@ -258,6 +311,7 @@ export default function ResumeStep1() {
             error={errors.address_city?.message}
             placeholder="札幌市中央区"
             autoComplete="address-level2"
+            className={autoFilled ? 'bg-blue-50!' : ''}
           />
           <Input
             label="番地・建物名"
