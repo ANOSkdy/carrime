@@ -11,7 +11,7 @@ export const AppShell = ({ title, footer, children }: AppShellProps) => {
   const mainPaddingBottom = footer ? 'pb-24' : 'pb-6';
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50 text-gray-900">
+    <div className="flex min-h-dvh flex-col bg-gray-50 text-gray-900">
       <header className="fixed inset-x-0 top-0 z-20 border-b bg-white/95 backdrop-blur">
         <div className="flex h-14 w-full items-center justify-between px-4">
           <Link

@@ -58,3 +58,15 @@ select,
 textarea {
   font: inherit;
 }
+
+/* iOS Safari はフォーカス時に 16px 未満の入力欄を自動ズームするため下限を確保する */
+input,
+select,
+textarea {
+  font-size: max(16px, 1em);
+}
+
+html {
+  scroll-padding-top: 4.5rem;
+  scroll-padding-bottom: 6rem;
+}

@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
+import { Input } from '@/components/form/Input';
+import { YearMonthFields } from '@/components/form/YearMonthFields';
 import { Button } from '@/components/ui/Button';
 import { BRAND_STORAGE_KEYS, getStorageItemWithLegacyFallback } from '@/lib/storage/branding';
 
@@ -130,39 +132,16 @@ export default function ResumeStep3() {
           ※最終学歴が〜高卒までは中学から、専門卒〜院卒は高校から記入<br />
           ※中途退学の場合は中途退学した学校まで記入
         </p>
-        <form onSubmit={handleSubmit(onAdd)} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-gray-600 mb-1">学校名</label>
-              <input {...register('school_name', { required: true })} className="w-full p-2 border rounded text-sm" placeholder="〇〇大学" />
-              {errors.school_name && <span className="text-red-500 text-xs">必須です</span>}
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-600 mb-1">学部・学科</label>
-              <input {...register('department')} className="w-full p-2 border rounded text-sm" placeholder="経済学部" />
-            </div>
+        <form onSubmit={handleSubmit(onAdd)} className="@container space-y-4">
+          <div className="grid grid-cols-1 gap-4 @md:grid-cols-2">
+            <Input label="学校名" {...register('school_name', { required: true })} error={errors.school_name ? '必須です' : undefined} placeholder="〇〇大学" containerClassName="mb-0" />
+            <Input label="学部・学科" {...register('department')} placeholder="経済学部" containerClassName="mb-0" />
           </div>
           
-          <div className="flex flex-wrap gap-4 items-end">
-            <div className="flex-1 min-w-[180px]">
-              <label className="block text-xs font-bold text-gray-600 mb-1">入学</label>
-              <div className="flex gap-1">
-                <input type="number" {...register('start_year', { valueAsNumber: true })} className="w-16 p-2 border rounded text-sm" />
-                <span className="self-center text-xs">年</span>
-                <input type="number" {...register('start_month', { valueAsNumber: true })} className="w-12 p-2 border rounded text-sm" />
-                <span className="self-center text-xs">月</span>
-              </div>
-            </div>
-            <span className="mb-3">〜</span>
-            <div className="flex-1 min-w-[180px]">
-              <label className="block text-xs font-bold text-gray-600 mb-1">卒業</label>
-              <div className="flex gap-1">
-                <input type="number" {...register('end_year', { valueAsNumber: true })} className="w-16 p-2 border rounded text-sm" />
-                <span className="self-center text-xs">年</span>
-                <input type="number" {...register('end_month', { valueAsNumber: true })} className="w-12 p-2 border rounded text-sm" />
-                <span className="self-center text-xs">月</span>
-              </div>
-            </div>
+          <div className="grid grid-cols-1 items-end gap-3 @md:grid-cols-[1fr_auto_1fr]">
+            <YearMonthFields label="入学" year={register('start_year', { valueAsNumber: true })} month={register('start_month', { valueAsNumber: true })} />
+            <span className="text-center @md:mb-3">〜</span>
+            <YearMonthFields label="卒業" year={register('end_year', { valueAsNumber: true })} month={register('end_month', { valueAsNumber: true })} />
           </div>
           <div className="flex justify-end">
             <Button type="submit" size="sm" variant="primary">学歴を追加</Button>
