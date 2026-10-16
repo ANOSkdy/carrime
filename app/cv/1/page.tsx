@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useStepRouter } from '@/lib/navigation/use-step-router';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/Button';
 import { BRAND_STORAGE_KEYS, getStorageItemWithLegacyFallback } from '@/lib/storage/branding';
@@ -15,7 +15,7 @@ type AiInputData = {
 };
 
 export default function CVStep1() {
-  const router = useRouter();
+  const router = useStepRouter();
   const [openHint, setOpenHint] = useState<'pr_summary' | 'episode' | 'policy' | null>(null);
   const { register, handleSubmit, setValue } = useForm<AiInputData>();
   const hintButtonClass =

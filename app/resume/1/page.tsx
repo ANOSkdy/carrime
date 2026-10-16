@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useStepRouter } from '@/lib/navigation/use-step-router';
 import { SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -41,7 +41,7 @@ const defaultValues: Partial<FormInput> = {
 };
 
 export default function ResumeStep1() {
-  const router = useRouter();
+  const router = useStepRouter();
 
   const getUserId = () => {
     if (typeof window !== 'undefined') {

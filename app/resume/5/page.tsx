@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
+import { useStepRouter } from '@/lib/navigation/use-step-router';
 import { Controller, useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/Button';
 import { TagSelector } from '@/components/ui/TagSelector';
@@ -15,7 +15,7 @@ type FormData = {
 };
 
 export default function ResumeStep5() {
-  const router = useRouter();
+  const router = useStepRouter();
   const {
     control,
     handleSubmit,

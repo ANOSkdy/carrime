@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useStepRouter } from '@/lib/navigation/use-step-router';
 import { useForm } from 'react-hook-form';
 import { Input } from '@/components/form/Input';
 import { Textarea } from '@/components/form/Textarea';
@@ -23,7 +23,7 @@ type Work = {
 };
 
 export default function ResumeStep4() {
-  const router = useRouter();
+  const router = useStepRouter();
   const [works, setWorks] = useState<Work[]>([]);
   const [loading, setLoading] = useState(true);
   const [showHint, setShowHint] = useState(false);

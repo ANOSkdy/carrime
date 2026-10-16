@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useStepRouter } from '@/lib/navigation/use-step-router';
 import { useForm } from 'react-hook-form';
 import { Input } from '@/components/form/Input';
 import { Select } from '@/components/ui/Select';
@@ -15,7 +15,7 @@ type FormData = {
 };
 
 export default function ResumeStep2() {
-  const router = useRouter();
+  const router = useStepRouter();
   const { register, handleSubmit } = useForm<FormData>({
     defaultValues: {
       job_change_count: 0,

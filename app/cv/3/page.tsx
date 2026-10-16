@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useStepRouter } from '@/lib/navigation/use-step-router';
 import { Button } from '@/components/ui/Button';
 import { PDFTrigger } from '@/components/pdf/PDFTrigger';
 import { JobHistoryTrigger } from '@/components/pdf/JobHistoryTrigger';
@@ -102,7 +102,7 @@ async function compressProfilePhoto(file: File) {
 }
 
 export default function CVStep3() {
-  const router = useRouter();
+  const router = useStepRouter();
   const [summary, setSummary] = useState('');
   const [transferableSkills, setTransferableSkills] = useState('');
   const [savedSummary, setSavedSummary] = useState('');

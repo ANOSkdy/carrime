@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useStepRouter } from '@/lib/navigation/use-step-router';
 import { useForm } from 'react-hook-form';
 import { Input } from '@/components/form/Input';
 import { YearMonthFields } from '@/components/form/YearMonthFields';
@@ -21,7 +21,7 @@ type Education = {
 };
 
 export default function ResumeStep3() {
-  const router = useRouter();
+  const router = useStepRouter();
   const [educations, setEducations] = useState<Education[]>([]);
   const [loading, setLoading] = useState(true);
 

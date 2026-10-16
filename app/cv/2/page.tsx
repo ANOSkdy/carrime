@@ -1,12 +1,12 @@
 ﻿'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useStepRouter } from '@/lib/navigation/use-step-router';
 import { Button } from '@/components/ui/Button';
 import { BRAND_STORAGE_KEYS, getStorageItemWithLegacyFallback } from '@/lib/storage/branding';
 
 export default function CVStep2() {
-  const router = useRouter();
+  const router = useStepRouter();
   const [generatedPR, setGeneratedPR] = useState('');
   const [loading, setLoading] = useState(false);
   const [inputs, setInputs] = useState<any>(null);

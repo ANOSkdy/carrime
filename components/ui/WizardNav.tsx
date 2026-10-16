@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 
 type Props = {
   currentStep: number;
@@ -15,14 +15,20 @@ export const WizardNav = ({ currentStep, totalSteps, labels, className = '', var
   return (
     <div className={`w-full ${padding} ${className}`}>
       <div className="relative flex items-start justify-between gap-2">
-        <div className="absolute left-0 right-0 top-4 h-1 -z-10 bg-gray-200"></div>
+        <div className="absolute left-0 right-0 top-5 -z-10 h-1 bg-gray-200">
+          <div
+            className="h-full origin-left bg-blue-600 transition-[width] duration-[var(--motion-duration-base)] ease-[var(--motion-ease-out)]"
+            style={{ width: `${totalSteps > 1 ? ((Math.min(currentStep, totalSteps) - 1) / (totalSteps - 1)) * 100 : 0}%` }}
+          />
+        </div>
 
         {Array.from({ length: totalSteps }).map((_, i) => {
           const stepNum = i + 1;
           const isActive = stepNum <= currentStep;
           const isCurrent = stepNum === currentStep;
 
-          let circleClass = "flex h-10 min-h-[44px] w-10 items-center justify-center rounded-full border-2 text-sm font-bold transition-colors";
+          let circleClass = "flex h-10 min-h-[44px] w-10 items-center justify-center rounded-full border-2 text-sm font-bold transition-[background-color,border-color,color,transform] duration-[var(--motion-duration-base)]";
+          if (isCurrent) circleClass += " scale-110";
           circleClass += isActive
             ? " bg-blue-600 border-blue-600 text-white"
             : " bg-white border-gray-300 text-gray-500";
@@ -32,7 +38,7 @@ export const WizardNav = ({ currentStep, totalSteps, labels, className = '', var
           }`;
 
           return (
-            <div key={stepNum} className="flex min-w-0 flex-1 flex-col items-center bg-white">
+            <div key={stepNum} className="flex min-w-0 flex-1 flex-col items-center">
               <div className={circleClass}>{stepNum}</div>
               {labels && labels[i] && (
                 <span className={labelClass}>{labels[i]}</span>
