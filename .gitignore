@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# 郵便番号データ(ken_all)の取得物
+/docs/zipcode/
