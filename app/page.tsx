@@ -4,10 +4,19 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { AppShell } from '@/components/layout/AppShell';
+import { stagger } from '@/lib/ui/stagger';
 
 export default function Home() {
   const router = useRouter();
   const [isAgreed, setIsAgreed] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  // 規約を一度でも開いた利用者だけが同意チェックを入力できる
+  const [hasOpened, setHasOpened] = useState(false);
+
+  const toggleTerms = () => {
+    setIsOpen((prev) => !prev);
+    setHasOpened(true);
+  };
 
   const handleStart = () => {
     if (!isAgreed) return;
@@ -16,26 +25,51 @@ export default function Home() {
 
   return (
     <AppShell title="ホーム">
-      <section className="space-y-6">
-        <div className="space-y-3">
-          <h1 className="text-3xl font-extrabold leading-tight text-blue-700">Carrime</h1>
-          <p className="text-sm text-gray-700">
+      <section className="lx space-y-10">
+        <div className="lx-reveal space-y-4 pt-6" style={stagger(0)}>
+          <p className="lx-eyebrow font-mono text-gray-400">AI Resume Studio</p>
+          <h1 className="text-4xl font-extrabold leading-tight tracking-[0.08em] text-blue-700">Carrime</h1>
+          <div aria-hidden="true" className="lx-rule w-16 text-gray-900" style={stagger(1)} />
+          <p className="text-[13px] leading-loose tracking-[0.06em] text-gray-600">
             AIでつくる、あなたのキャリア。
+            <br />
             いつでもどこでもモバイル端末から履歴書・職務経歴書を作成できます。
           </p>
         </div>
 
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="lx-reveal rounded-xl border border-gray-200 bg-white p-4 shadow-sm" style={stagger(2)}>
           <div className="space-y-3">
-            <p className="text-sm font-semibold text-gray-800">ご利用開始の前に</p>
-            <p className="text-sm text-gray-600 leading-relaxed">
-              当サービスをご利用いただく前に、以下の利用規約を必ずご確認ください。利用規約に同意いただけない場合、履歴書・職務経歴書の作成を開始できません。
+            <p className="text-[13px] font-semibold tracking-[0.12em] text-gray-900">ご利用開始の前に</p>
+            <p className="text-[13px] leading-relaxed tracking-[0.04em] text-gray-500">
+              ご利用前に利用規約をご確認ください。同意いただけない場合、履歴書・職務経歴書の作成を開始できません。
             </p>
-            <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
-              <div className="flex items-center gap-2 text-base font-semibold text-gray-900">
+            <button
+              type="button"
+              onClick={toggleTerms}
+              aria-expanded={isOpen}
+              aria-controls="terms-panel"
+              className="flex min-h-[44px] w-full items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-left text-sm font-semibold text-gray-900 transition-colors hover:bg-blue-50/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            >
+              <span className="flex items-center gap-2">
                 <span role="img" aria-label="document">📄</span>
-                利用規約
-              </div>
+                利用規約を読む
+              </span>
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                className={`h-4 w-4 shrink-0 text-gray-500 transition-transform duration-[var(--motion-duration-base)] ease-[var(--motion-ease-out)] ${isOpen ? 'rotate-180' : ''}`}
+              >
+                <path d="M5 8l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            {isOpen && (
+            <div
+              id="terms-panel"
+              className="lx-expand space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700"
+            >
               <div className="max-h-72 space-y-2 overflow-y-auto pr-2 leading-relaxed">
                 <p>
                   株式会社ROBINSON（以下「当社」といいます。）は、当社が提供するAI履歴書・職務経歴書作成サービス「Carrime」（以下「本機能」といいます。）の利用にあたり、以下の事項を定めます。利用者は、本機能を利用した時点で、本規約および以下の注意事項・個人情報の取り扱いに同意したものとみなされます。
@@ -110,29 +144,45 @@ export default function Home() {
                 </div>
               </div>
             </div>
-            <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                checked={isAgreed}
-                onChange={(event) => setIsAgreed(event.target.checked)}
-              />
-              <span>
-                利用規約に同意します。内容を確認のうえ、チェックを入れてください。
-              </span>
-            </label>
-            <Button
-              size="lg"
-              className="font-bold shadow-sm"
-              onClick={handleStart}
-              disabled={!isAgreed}
-            >
-              利用規約に同意して作成を開始する
-            </Button>
+            )}
+            <div className="space-y-2">
+              <label
+                className={`flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm transition-colors duration-300 ${
+                  hasOpened ? 'cursor-pointer text-gray-700' : 'cursor-not-allowed text-gray-400'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed"
+                  checked={isAgreed}
+                  disabled={!hasOpened}
+                  aria-describedby={hasOpened ? undefined : 'terms-hint'}
+                  onChange={(event) => setIsAgreed(event.target.checked)}
+                />
+                <span>
+                  利用規約に同意します。内容を確認のうえ、チェックを入れてください。
+                </span>
+              </label>
+              {!hasOpened && (
+                <p id="terms-hint" className="text-xs tracking-[0.04em] text-gray-500">
+                  利用規約を開いて内容を確認すると、同意にチェックできます。
+                </p>
+              )}
+            </div>
+            <div className="lx-sheen">
+              <Button
+                size="lg"
+                className="font-bold shadow-sm"
+                onClick={handleStart}
+                disabled={!isAgreed}
+              >
+                利用規約に同意して作成を開始する
+              </Button>
+            </div>
           </div>
         </div>
 
-        <p className="text-center text-xs text-gray-400">© Acoru inc.</p>
+        <p className="lx-reveal text-center text-xs text-gray-400" style={stagger(3)}>© Acoru inc.</p>
       </section>
     </AppShell>
   );
