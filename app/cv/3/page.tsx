@@ -1,8 +1,10 @@
 ﻿'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useStepRouter } from '@/lib/navigation/use-step-router';
 import { Button } from '@/components/ui/Button';
+import { PageIntro } from '@/components/layout/PageIntro';
+import { stagger } from '@/lib/ui/stagger';
 import { PDFTrigger } from '@/components/pdf/PDFTrigger';
 import { JobHistoryTrigger } from '@/components/pdf/JobHistoryTrigger';
 import { BRAND_STORAGE_KEYS, getStorageItemWithLegacyFallback } from '@/lib/storage/branding';
@@ -102,7 +104,7 @@ async function compressProfilePhoto(file: File) {
 }
 
 export default function CVStep3() {
-  const router = useRouter();
+  const router = useStepRouter();
   const [summary, setSummary] = useState('');
   const [transferableSkills, setTransferableSkills] = useState('');
   const [savedSummary, setSavedSummary] = useState('');
@@ -328,8 +330,12 @@ export default function CVStep3() {
   const worksCount = fullData?.works?.length || 0;
 
   return (
-    <div>
-      <h2 className="text-xl font-bold mb-4">職務要約</h2>
+    <div className="lx">
+      <PageIntro
+        eyebrow="Step 08 — Summary"
+        title="職務要約"
+        description="職務要約を確認・編集し、応募書類をPDFで出力できます。"
+      />
 
       <div className="mb-8 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

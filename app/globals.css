@@ -70,3 +70,50 @@ html {
   scroll-padding-top: 4.5rem;
   scroll-padding-bottom: 6rem;
 }
+
+/* ステップ遷移 (View Transitions)。進む=右から入り左へ抜ける / 戻る=その逆 */
+@keyframes step-in-from-right {
+  from { opacity: 0; transform: translateX(32px); }
+}
+@keyframes step-in-from-left {
+  from { opacity: 0; transform: translateX(-32px); }
+}
+@keyframes step-out-to-left {
+  to { opacity: 0; transform: translateX(-32px); }
+}
+@keyframes step-out-to-right {
+  to { opacity: 0; transform: translateX(32px); }
+}
+
+::view-transition-group(*) {
+  animation-duration: var(--motion-duration-base);
+  animation-timing-function: var(--motion-ease-out);
+}
+
+::view-transition-new(.step-enter-forward) {
+  animation: step-in-from-right var(--motion-duration-base) var(--motion-ease-out) both;
+}
+::view-transition-new(.step-enter-back) {
+  animation: step-in-from-left var(--motion-duration-base) var(--motion-ease-out) both;
+}
+::view-transition-old(.step-exit-forward) {
+  animation: step-out-to-left var(--motion-duration-fast) var(--motion-ease-in) both;
+}
+::view-transition-old(.step-exit-back) {
+  animation: step-out-to-right var(--motion-duration-fast) var(--motion-ease-in) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

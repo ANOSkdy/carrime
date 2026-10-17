@@ -1,11 +1,14 @@
 ﻿'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useStepRouter } from '@/lib/navigation/use-step-router';
 import { useForm } from 'react-hook-form';
 import { Input } from '@/components/form/Input';
 import { YearMonthFields } from '@/components/form/YearMonthFields';
 import { Button } from '@/components/ui/Button';
+import { PageIntro } from '@/components/layout/PageIntro';
+import { FormSection } from '@/components/layout/FormSection';
+import { stagger } from '@/lib/ui/stagger';
 import { BRAND_STORAGE_KEYS, getStorageItemWithLegacyFallback } from '@/lib/storage/branding';
 
 // 学歴データの型
@@ -21,7 +24,7 @@ type Education = {
 };
 
 export default function ResumeStep3() {
-  const router = useRouter();
+  const router = useStepRouter();
   const [educations, setEducations] = useState<Education[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -91,11 +94,11 @@ export default function ResumeStep3() {
   };
 
   return (
-    <div>
-      <h2 className="text-xl font-bold mb-6">学歴の入力</h2>
-      
-      {/* 登録済みリスト */}
-      <div className="mb-8 space-y-3">
+    <div className="lx">
+      <PageIntro eyebrow="Step 03 — Education" title="学歴の入力" description="最終学歴に至るまでの学校を、入学の古い順にご登録ください。" />
+      <div className="space-y-12">
+      <FormSection index={0} title="登録済みの学歴">
+      <div className="space-y-3">
         {loading && <p className="text-sm text-gray-400">学歴を読み込み中...</p>}
         {!loading && educations.length === 0 && <p className="text-gray-500">学歴はまだ登録されていません。</p>}
         
@@ -122,12 +125,10 @@ export default function ResumeStep3() {
           </div>
         ))}
       </div>
+      </FormSection>
 
-      <hr className="my-6" />
-
-      {/* 新規追加フォーム */}
-      <div className="bg-blue-50 p-4 rounded-md mb-6">
-        <h3 className="font-bold text-sm text-blue-800 mb-1">学歴を追加する</h3>
+      <FormSection index={1} title="学歴を追加">
+      <div className="bg-blue-50 p-4 rounded-md">
         <p className="text-xs text-gray-500 mb-4">
           ※最終学歴が〜高卒までは中学から、専門卒〜院卒は高校から記入<br />
           ※中途退学の場合は中途退学した学校まで記入
@@ -148,10 +149,16 @@ export default function ResumeStep3() {
           </div>
         </form>
       </div>
+      </FormSection>
 
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={() => router.back()}>戻る</Button>
-        <Button onClick={onNext} disabled={educations.length === 0}>次へ進む</Button>
+      <div className="lx-reveal flex gap-3" style={stagger(3)}>
+        <div className="min-w-0 flex-1">
+          <Button variant="outline" onClick={() => router.back()}>戻る</Button>
+        </div>
+        <div className="lx-sheen min-w-0 flex-1">
+          <Button onClick={onNext} disabled={educations.length === 0}>次へ進む</Button>
+        </div>
+      </div>
       </div>
     </div>
   );

@@ -1,9 +1,11 @@
 ﻿'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useStepRouter } from '@/lib/navigation/use-step-router';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/Button';
+import { PageIntro } from '@/components/layout/PageIntro';
+import { stagger } from '@/lib/ui/stagger';
 import { BRAND_STORAGE_KEYS, getStorageItemWithLegacyFallback } from '@/lib/storage/branding';
 
 // 新しい4つの質問に対応するデータ型
@@ -15,7 +17,7 @@ type AiInputData = {
 };
 
 export default function CVStep1() {
-  const router = useRouter();
+  const router = useStepRouter();
   const [openHint, setOpenHint] = useState<'pr_summary' | 'episode' | 'policy' | null>(null);
   const { register, handleSubmit, setValue } = useForm<AiInputData>();
   const hintButtonClass =
@@ -42,12 +44,12 @@ export default function CVStep1() {
   };
 
   return (
-    <div>
-      <h2 className="text-xl font-bold mb-4">自己PR作成のためのヒアリング</h2>
-      <p className="text-sm text-gray-500 mb-6">
-        以下の質問にお答えください。<br/>
-        AIが回答内容を分析し、あなたの魅力が伝わる自己PRを作成します。
-      </p>
+    <div className="lx">
+      <PageIntro
+        eyebrow="Step 06 — Interview"
+        title="自己PR作成のためのヒアリング"
+        description="以下の質問にお答えください。AIが回答内容を分析し、あなたの魅力が伝わる自己PRを作成します。"
+      />
       
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
         
@@ -129,8 +131,10 @@ export default function CVStep1() {
           />
         </div>
 
-      <div className="flex justify-end pt-4">
-        <Button type="submit">次へ進みAI生成する</Button>
+      <div className="lx-reveal flex justify-end pt-4" style={stagger(4)}>
+        <div className="lx-sheen">
+          <Button type="submit">次へ進みAI生成する</Button>
+        </div>
       </div>
       {openHint && (
         <div

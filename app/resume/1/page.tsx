@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useEffect, useRef, useState } from 'react';
+import { useStepRouter } from '@/lib/navigation/use-step-router';
 import { SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,7 +10,11 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/form/Input';
 import { Textarea } from '@/components/form/Textarea';
 import { Select } from '@/components/ui/Select';
+import { PageIntro } from '@/components/layout/PageIntro';
+import { FormSection } from '@/components/layout/FormSection';
+import { stagger } from '@/lib/ui/stagger';
 import { BRAND_STORAGE_KEYS, getStorageItemWithLegacyFallback } from '@/lib/storage/branding';
+import { isCompletePostalCode, normalizePostalCode } from '@/lib/address/postal-code';
 import { ensureResumeId, hasPendingResumeSave, retryPendingResumeSave, saveResumeInBackground } from '@/lib/storage/resume-save';
 
 const formSchema = ResumeSchema.omit({ user_id: true });
@@ -40,7 +44,7 @@ const defaultValues: Partial<FormInput> = {
 };
 
 export default function ResumeStep1() {
-  const router = useRouter();
+  const router = useStepRouter();
 
   const getUserId = () => {
     if (typeof window !== 'undefined') {
@@ -60,6 +64,8 @@ export default function ResumeStep1() {
     watch,
     reset,
     setValue,
+    getValues,
+    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<FormInput>({
     resolver: zodResolver(formSchema),
@@ -69,6 +75,9 @@ export default function ResumeStep1() {
   const hasSpouse = watch('has_spouse');
   const [useSeparateContact, setUseSeparateContact] = useState(false);
   const [isRetryingSave, setIsRetryingSave] = useState(false);
+  const [zipStatus, setZipStatus] = useState<'idle' | 'loading' | 'notfound' | 'error'>('idle');
+  const [autoFilled, setAutoFilled] = useState(false);
+  const lastLookedUp = useRef('');
 
   useEffect(() => {
     const resumeId = ensureResumeId();
@@ -139,6 +148,41 @@ export default function ResumeStep1() {
     }
   };
 
+  const lookupPostalCode = async (raw: string) => {
+    if (!isCompletePostalCode(raw)) {
+      setZipStatus('idle');
+      return;
+    }
+    const code = normalizePostalCode(raw);
+    if (code === lastLookedUp.current) return;
+    lastLookedUp.current = code;
+    setZipStatus('loading');
+
+    try {
+      const res = await fetch('/api/data/zipcode?code=' + code);
+      if (lastLookedUp.current !== code) return;
+      if (res.status === 404) {
+        setZipStatus('notfound');
+        return;
+      }
+      if (!res.ok) throw new Error('lookup failed');
+
+      const data = (await res.json()) as { prefecture: string; city: string; towns: string[] };
+      setValue('address_prefecture', data.prefecture, { shouldValidate: true });
+      setValue('address_city', data.city, { shouldValidate: true });
+      // 町域が一意に決まる場合のみ番地欄の先頭へ補完する(既入力は上書きしない)
+      if (data.towns.length === 1 && !getValues('address_line1')?.trim()) {
+        setValue('address_line1', data.towns[0], { shouldValidate: true });
+      }
+      setZipStatus('idle');
+      setAutoFilled(true);
+      setTimeout(() => setAutoFilled(false), 1600);
+      setFocus('address_line1');
+    } catch {
+      if (lastLookedUp.current === code) setZipStatus('error');
+    }
+  };
+
   const onInvalid = () => {
     requestAnimationFrame(() => {
       document
@@ -161,182 +205,209 @@ export default function ResumeStep1() {
   };
 
   return (
-    <div>
-      <h2 className="text-xl font-bold mb-6">基本情報の入力</h2>
+    <div className="lx">
+      <PageIntro
+        eyebrow="Step 01 — Profile"
+        title="基本情報の入力"
+        description="履歴書の冒頭に記載される情報です。入力内容は自動で保存されます。"
+      />
 
-      <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="@container space-y-6">
-        <div className="grid grid-cols-1 gap-x-3 @md:grid-cols-2">
-          <Input
-            label="姓 (漢字)"
-            {...register('last_name_kanji')}
-            error={errors.last_name_kanji?.message}
-            placeholder="山田"
-          />
-          <Input
-            label="名 (漢字)"
-            {...register('first_name_kanji')}
-            error={errors.first_name_kanji?.message}
-            placeholder="太郎"
-          />
-        </div>
-
-        <div className="grid grid-cols-1 gap-x-3 @md:grid-cols-2">
-          <Input
-            label="姓 (カナ)"
-            {...register('last_name_kana')}
-            error={errors.last_name_kana?.message}
-            placeholder="ヤマダ"
-          />
-          <Input
-            label="名 (カナ)"
-            {...register('first_name_kana')}
-            error={errors.first_name_kana?.message}
-            placeholder="タロウ"
-          />
-        </div>
-
-        <fieldset>
-          <legend className="mb-1 block text-sm font-medium text-gray-700">生年月日</legend>
-          <div className="grid grid-cols-[1.4fr_1fr_1fr] gap-2">
+      <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="@container space-y-12">
+        <FormSection index={0} title="お名前">
+          <div className="grid grid-cols-1 gap-x-3 @md:grid-cols-2">
             <Input
-              type="number"
-              inputMode="numeric"
-              aria-label="生年（年）"
-              suffix="年"
-              containerClassName="mb-0"
-              {...register('dob_year', { valueAsNumber: true })}
+              label="姓 (漢字)"
+              {...register('last_name_kanji')}
+              error={errors.last_name_kanji?.message}
+              placeholder="山田"
             />
             <Input
-              type="number"
-              inputMode="numeric"
-              aria-label="生月（月）"
-              suffix="月"
-              containerClassName="mb-0"
-              {...register('dob_month', { valueAsNumber: true })}
-            />
-            <Input
-              type="number"
-              inputMode="numeric"
-              aria-label="生日（日）"
-              suffix="日"
-              containerClassName="mb-0"
-              {...register('dob_day', { valueAsNumber: true })}
+              label="名 (漢字)"
+              {...register('first_name_kanji')}
+              error={errors.first_name_kanji?.message}
+              placeholder="太郎"
             />
           </div>
-          {errors.dob_year && <p className="mt-1 text-sm text-red-600">正しい日付を入力してください</p>}
-        </fieldset>
 
-        <Select label="性別" {...register('gender')}>
+          <div className="grid grid-cols-1 gap-x-3 @md:grid-cols-2">
+            <Input
+              label="姓 (カナ)"
+              {...register('last_name_kana')}
+              error={errors.last_name_kana?.message}
+              placeholder="ヤマダ"
+            />
+            <Input
+              label="名 (カナ)"
+              {...register('first_name_kana')}
+              error={errors.first_name_kana?.message}
+              placeholder="タロウ"
+            />
+          </div>
+        </FormSection>
+
+        <FormSection index={1} title="生年月日・性別">
+          <fieldset>
+            <legend className="mb-1 block text-sm font-medium text-gray-700">生年月日</legend>
+            <div className="grid grid-cols-[1.4fr_1fr_1fr] gap-2 tabular-nums">
+              <Input
+                type="number"
+                inputMode="numeric"
+                aria-label="生年（年）"
+                suffix="年"
+                containerClassName="mb-0"
+                {...register('dob_year', { valueAsNumber: true })}
+              />
+              <Input
+                type="number"
+                inputMode="numeric"
+                aria-label="生月（月）"
+                suffix="月"
+                containerClassName="mb-0"
+                {...register('dob_month', { valueAsNumber: true })}
+              />
+              <Input
+                type="number"
+                inputMode="numeric"
+                aria-label="生日（日）"
+                suffix="日"
+                containerClassName="mb-0"
+                {...register('dob_day', { valueAsNumber: true })}
+              />
+            </div>
+            {errors.dob_year && <p className="mt-1 text-sm text-red-600">正しい日付を入力してください</p>}
+          </fieldset>
+
+          <Select label="性別" {...register('gender')}>
             <option value="男性">男性</option>
             <option value="女性">女性</option>
             <option value="その他">その他</option>
           </Select>
+        </FormSection>
 
-        <div className="grid grid-cols-1 gap-x-3 @md:grid-cols-2">
-          <Input
-            label="郵便番号"
-            {...register('postal_code')}
-            error={errors.postal_code?.message}
-            placeholder="0600001"
-            inputMode="numeric"
-            autoComplete="postal-code"
-            maxLength={8}
-          />
-          <Input
-            label="都道府県"
-            {...register('address_prefecture')}
-            error={errors.address_prefecture?.message}
-            placeholder="北海道"
-            autoComplete="address-level1"
-          />
-        </div>
-
-        <div className="grid grid-cols-1 gap-x-3 @md:grid-cols-2">
-          <Input
-            label="市区町村"
-            {...register('address_city')}
-            error={errors.address_city?.message}
-            placeholder="札幌市中央区"
-            autoComplete="address-level2"
-          />
-          <Input
-            label="番地・建物名"
-            {...register('address_line1')}
-            error={errors.address_line1?.message}
-            placeholder="北1条西3丁目 ○○ビル 5F"
-            autoComplete="address-line1"
-          />
-        </div>
-
-        <Input
-          label="建物名・部屋番号など（任意）"
-          {...register('address_line2')}
-          error={errors.address_line2?.message}
-          placeholder="101号室"
-        />
-
-        <div className="grid grid-cols-1 gap-x-3 @md:grid-cols-2">
-          <Input
-            label="メールアドレス"
-            {...register('email')}
-            error={errors.email?.message}
-            placeholder="example@mail.com"
-            type="email"
-            inputMode="email"
-            autoComplete="email"
-          />
-          <Input
-            label="電話番号"
-            {...register('phone_number')}
-            error={errors.phone_number?.message}
-            placeholder="09012345678"
-            type="tel"
-            inputMode="tel"
-            autoComplete="tel"
-          />
-        </div>
-
-        <div className="space-y-3">
-          <div className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              id="use_separate_contact"
-              checked={useSeparateContact}
-              onChange={handleSeparateContactChange}
+        <FormSection index={2} title="住所">
+          <div className="grid grid-cols-1 gap-x-3 @md:grid-cols-2">
+            <Input
+              label="郵便番号"
+              {...register('postal_code', {
+                onChange: (e: React.ChangeEvent<HTMLInputElement>) => void lookupPostalCode(e.target.value),
+              })}
+              loading={zipStatus === 'loading'}
+              error={
+                errors.postal_code?.message ??
+                (zipStatus === 'notfound'
+                  ? '該当する住所が見つかりません。手入力してください'
+                  : zipStatus === 'error'
+                    ? '住所を取得できませんでした。手入力してください'
+                    : undefined)
+              }
+              hint="7桁を入力すると住所が自動入力されます"
+              placeholder="0600001"
+              inputMode="numeric"
+              autoComplete="postal-code"
+              maxLength={8}
             />
-            <label htmlFor="use_separate_contact" className="text-sm font-medium text-gray-700">
-              現住所と異なる連絡先を登録する
-            </label>
+            <Input
+              label="都道府県"
+              {...register('address_prefecture')}
+              error={errors.address_prefecture?.message}
+              placeholder="北海道"
+              autoComplete="address-level1"
+              className={autoFilled ? 'lx-autofill' : ''}
+            />
           </div>
 
-          {useSeparateContact && (
-            <div className="space-y-3 rounded-md border border-gray-200 bg-gray-50 p-4">
-              <Textarea
-                label="連絡先住所"
-                rows={3}
-                {...register('contactAddress')}
-                error={errors.contactAddress?.message}
-              />
+          <div className="grid grid-cols-1 gap-x-3 @md:grid-cols-2">
+            <Input
+              label="市区町村"
+              {...register('address_city')}
+              error={errors.address_city?.message}
+              placeholder="札幌市中央区"
+              autoComplete="address-level2"
+              className={autoFilled ? 'lx-autofill' : ''}
+            />
+            <Input
+              label="番地・建物名"
+              {...register('address_line1')}
+              error={errors.address_line1?.message}
+              placeholder="北1条西3丁目 ○○ビル 5F"
+              autoComplete="address-line1"
+            />
+          </div>
 
-              <Input
-                label="連絡先電話番号"
-                {...register('contactPhone')}
-                error={errors.contactPhone?.message}
-                placeholder="0312345678"
-              />
+          <Input
+            label="建物名・部屋番号など（任意）"
+            {...register('address_line2')}
+            error={errors.address_line2?.message}
+            placeholder="101号室"
+            autoComplete="address-line2"
+          />
+        </FormSection>
 
-              <Input
-                label="連絡先メールアドレス"
-                {...register('contactEmail')}
-                error={errors.contactEmail?.message}
-                placeholder="contact@example.com"
-                type="email"
+        <FormSection index={3} title="連絡先">
+          <div className="grid grid-cols-1 gap-x-3 @md:grid-cols-2">
+            <Input
+              label="メールアドレス"
+              {...register('email')}
+              error={errors.email?.message}
+              placeholder="example@mail.com"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+            />
+            <Input
+              label="電話番号"
+              {...register('phone_number')}
+              error={errors.phone_number?.message}
+              placeholder="09012345678"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+            />
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="use_separate_contact"
+                checked={useSeparateContact}
+                onChange={handleSeparateContactChange}
               />
+              <label htmlFor="use_separate_contact" className="text-sm font-medium text-gray-700">
+                現住所と異なる連絡先を登録する
+              </label>
             </div>
-          )}
-        </div>
 
-        <Select label="扶養家族数（配偶者を除く）" {...register('dependents_count')}>
+            {useSeparateContact && (
+              <div className="lx-expand space-y-3 rounded-md border border-gray-200 bg-gray-50 p-4">
+                <Textarea
+                  label="連絡先住所"
+                  rows={3}
+                  {...register('contactAddress')}
+                  error={errors.contactAddress?.message}
+                />
+
+                <Input
+                  label="連絡先電話番号"
+                  {...register('contactPhone')}
+                  error={errors.contactPhone?.message}
+                  placeholder="0312345678"
+                />
+
+                <Input
+                  label="連絡先メールアドレス"
+                  {...register('contactEmail')}
+                  error={errors.contactEmail?.message}
+                  placeholder="contact@example.com"
+                  type="email"
+                />
+              </div>
+            )}
+          </div>
+        </FormSection>
+
+        <FormSection index={4} title="家族・扶養">
+          <Select label="扶養家族数（配偶者を除く）" {...register('dependents_count')}>
             <option value="">選択してください</option>
             <option value="0">0</option>
             <option value="1">1</option>
@@ -346,41 +417,43 @@ export default function ResumeStep1() {
             <option value="5+">5+</option>
           </Select>
 
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">家族・扶養</label>
-          <div className="flex items-center space-x-2">
-            <input type="checkbox" id="has_spouse" {...register('has_spouse')} />
-            <label htmlFor="has_spouse" className="text-sm">
-              配偶者の有無
-            </label>
+          <div className="space-y-2">
+            <div className="flex items-center space-x-2">
+              <input type="checkbox" id="has_spouse" {...register('has_spouse')} />
+              <label htmlFor="has_spouse" className="text-sm">
+                配偶者の有無
+              </label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="spouse_is_dependent"
+                {...register('spouse_is_dependent')}
+                disabled={!hasSpouse}
+              />
+              <label
+                htmlFor="spouse_is_dependent"
+                className={`text-sm transition-colors duration-300 ${!hasSpouse ? 'text-gray-400' : ''}`}
+              >
+                配偶者を扶養に入れている
+              </label>
+            </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              id="spouse_is_dependent"
-              {...register('spouse_is_dependent')}
-              disabled={!hasSpouse}
-            />
-            <label
-              htmlFor="spouse_is_dependent"
-              className={`text-sm ${!hasSpouse ? 'text-gray-400' : ''}`}
-            >
-              配偶者を扶養に入れている
-            </label>
-          </div>
-        </div>
+        </FormSection>
 
         {isRetryingSave && (
-          <p className="text-sm text-gray-600 inline-flex items-center gap-2">
-            <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" />
+          <p className="inline-flex items-center gap-2 text-[13px] tracking-[0.04em] text-gray-500">
+            <span className="lx-breath h-1.5 w-1.5 rounded-full bg-current" />
             保存中です
           </p>
         )}
 
-        <div className="pt-4">
-          <Button type="submit" isLoading={isSubmitting}>
-            保存して次へ進む
-          </Button>
+        <div className="lx-reveal pt-4" style={stagger(6)}>
+          <div className="lx-sheen">
+            <Button type="submit" isLoading={isSubmitting}>
+              保存して次へ進む
+            </Button>
+          </div>
         </div>
       </form>
     </div>

@@ -1,0 +1,88 @@
+/* 高級感レイヤー: 余白・字間・罫線・モーションのみで質感を出す。色は追加しない。 */
+.lx { font-feature-settings: 'palt'; }
+
+/* ===== 求職者向け ===== */
+.lx-reveal {
+  animation: lx-reveal var(--motion-duration-reveal) var(--motion-ease-out) both;
+  animation-delay: calc(var(--i, 0) * var(--motion-stagger));
+}
+@keyframes lx-reveal { from { opacity: 0; transform: translateY(12px); filter: blur(3px); } }
+
+.lx-rule {
+  height: 1px; background: currentColor; opacity: .18; transform-origin: left;
+  animation: lx-rule var(--motion-duration-rule) var(--motion-ease-out) both;
+  animation-delay: calc(var(--i, 0) * var(--motion-stagger) + 160ms);
+}
+@keyframes lx-rule { from { transform: scaleX(0); } }
+
+.lx-rule-static { height: 1px; background: currentColor; opacity: .18; }
+
+.lx :is(input, select, textarea) {
+  transition:
+    border-color 200ms var(--motion-ease-out),
+    box-shadow 280ms var(--motion-ease-out),
+    background-color 600ms var(--motion-ease-out);
+}
+
+.lx-autofill { animation: lx-autofill var(--motion-duration-settle) var(--motion-ease-out); }
+@keyframes lx-autofill { 0%, 25% { background-color: var(--color-blue-50, #eff6ff); } }
+
+.lx-expand { animation: lx-expand var(--motion-duration-expand) var(--motion-ease-out) both; }
+@keyframes lx-expand {
+  from { opacity: 0; transform: translateY(-6px); clip-path: inset(0 0 100% 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
+.lx-sheen > button {
+  background-image: linear-gradient(110deg, transparent 38%, rgb(255 255 255 / .22) 50%, transparent 62%);
+  background-size: 260% 100%; background-repeat: no-repeat; background-position: 160% 0;
+  transition:
+    background-position var(--motion-duration-sheen) var(--motion-ease-out),
+    letter-spacing 320ms var(--motion-ease-out),
+    transform 200ms var(--motion-ease-out);
+}
+.lx-sheen > button:hover { background-position: -60% 0; letter-spacing: .08em; }
+.lx-sheen > button:active { transform: translateY(1px); }
+
+.lx-breath { animation: lx-breath 1400ms ease-in-out infinite; }
+@keyframes lx-breath { 50% { opacity: .25; transform: scale(.7); } }
+
+/* ===== 業務画面 ===== */
+.lx-fade {
+  animation: lx-fade var(--motion-duration-fade) var(--motion-ease-out) both;
+  animation-delay: calc(var(--i, 0) * var(--motion-stagger-quiet));
+}
+@keyframes lx-fade { from { opacity: 0; transform: translateY(4px); } }
+
+/* 行ホバー：背景の変化をなめらかにし、左端にアクセント色の細線を出す */
+.lx-row { transition: background-color var(--motion-duration-ui) var(--motion-ease-out); }
+.lx-row > :first-child { position: relative; }
+.lx-row > :first-child::before,
+.lx-card::before {
+  content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 2px;
+  background: var(--lx-accent); transform: scaleY(0);
+  transition: transform var(--motion-duration-ui) var(--motion-ease-out);
+}
+.lx-row:is(:hover, :focus-within) > :first-child::before,
+.lx-card:is(:hover, :focus-visible)::before { transform: scaleY(1); }
+.lx-card { position: relative; transition: background-color var(--motion-duration-ui) var(--motion-ease-out); }
+
+/* リンク：下線が左から伸びる */
+.lx-link {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-size: 0 1px; background-repeat: no-repeat; background-position: 0 100%;
+  transition: background-size var(--motion-duration-ui) var(--motion-ease-out),
+              color var(--motion-duration-ui) var(--motion-ease-out);
+}
+.lx-link:hover { background-size: 100% 1px; }
+
+/* 補助 */
+.lx-num { font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.lx-eyebrow { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; }
+
+/* globals.css の reduced-motion は duration のみ短縮し animation-delay が残るため、animation 自体を無効化する */
+@media (prefers-reduced-motion: reduce) {
+  .lx-reveal, .lx-rule, .lx-autofill, .lx-expand, .lx-breath, .lx-fade { animation: none !important; }
+  .lx-row, .lx-card, .lx-link, .lx-sheen > button,
+  .lx-row > :first-child::before, .lx-card::before { transition: none !important; }
+}

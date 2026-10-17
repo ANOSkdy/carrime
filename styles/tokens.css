@@ -1,8 +1,32 @@
-﻿:root {
+:root {
   /* Colors */
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 214, 219, 220;
   --background-end-rgb: 255, 255, 255;
   --primary-color: #0070f3;
   --secondary-color: #666;
+}
+
+:root {
+  /* Motion */
+  --motion-duration-fast: 150ms;
+  --motion-duration-base: 280ms;
+  --motion-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-ease-in: cubic-bezier(0.64, 0, 0.78, 0);
+
+  /* 求職者向け（高級感レイヤー） */
+  --motion-duration-reveal: 560ms;
+  --motion-duration-rule: 900ms;
+  --motion-duration-expand: 420ms;
+  --motion-duration-sheen: 900ms;
+  --motion-duration-settle: 1600ms;
+  --motion-stagger: 60ms;
+
+  /* 業務画面 */
+  --motion-duration-ui: 180ms;
+  --motion-duration-fade: 240ms;
+  --motion-stagger-quiet: 20ms;
+
+  /* アクセント（ブランド色 = Tailwind blue-600） */
+  --lx-accent: var(--color-blue-600, #2563eb);
 }

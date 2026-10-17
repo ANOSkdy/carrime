@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import Link from 'next/link';
 import { headers } from 'next/headers';
 import { AppShell } from '@/components/layout/AppShell';
+import { FormSection } from '@/components/layout/FormSection';
 import { getResumeBundle } from '@/lib/db/resume';
 import { isValidResumeId, normalizeResumeId, normalizeReturnTo } from '@/lib/crm/resume-id';
 
@@ -126,7 +127,7 @@ export default async function CrmDetailPage({
             <p>resume_id: {resumeId}</p>
             <p>Trace ID: {correlationId}</p>
           </div>
-          <Link className="text-sm font-medium text-blue-600 hover:text-blue-700" href={returnTo}>
+          <Link className="lx-link text-sm font-medium text-blue-600 hover:text-blue-700" href={returnTo}>
             ← 一覧へ戻る
           </Link>
         </div>
@@ -162,12 +163,13 @@ export default async function CrmDetailPage({
 
   return (
     <AppShell title="CRM / 応募者詳細">
-      <div className="space-y-4">
-        <Link className="text-sm font-medium text-blue-600 hover:text-blue-700" href={returnTo}>
+      <div className="lx lx-fade space-y-4">
+        <Link className="lx-link text-sm font-medium text-blue-600 hover:text-blue-700" href={returnTo}>
           ← 一覧へ戻る
         </Link>
 
         <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+          <FormSection motion="none" index={0} title="プロフィール">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-2">
               <h1 className="text-xl font-semibold text-gray-900">{nameKanji || '未入力'}</h1>
@@ -176,11 +178,11 @@ export default async function CrmDetailPage({
                   <div>メール: {resume.contactEmail ?? resume.email}</div>
                 ) : null}
                 {resume.contactPhone ?? resume.phone_number ? (
-                  <div>電話: {resume.contactPhone ?? resume.phone_number}</div>
+                  <div className="lx-num">電話: {resume.contactPhone ?? resume.phone_number}</div>
                 ) : null}
                 {resume.contactAddress ? <div>住所: {resume.contactAddress}</div> : null}
               </div>
-              {updatedAt ? <p className="text-xs text-gray-400">更新日: {updatedAt}</p> : null}
+              {updatedAt ? <p className="lx-num text-xs text-gray-400">更新日: {updatedAt}</p> : null}
             </div>
             {resume.profilePhotoUrl ? (
               <img
@@ -199,14 +201,16 @@ export default async function CrmDetailPage({
               <Tag key={location}>{location}</Tag>
             ))}
           </div>
+          </FormSection>
         </section>
 
         <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <h2 className="text-base font-semibold text-gray-900">応募者情報</h2>
-          <div className="mt-3 grid gap-4 text-sm text-gray-700 md:grid-cols-2">
+          <div className="space-y-8">
+          <FormSection motion="none" index={1} title="就業条件">
+          <div className="grid gap-4 text-sm text-gray-700 md:grid-cols-2">
             <div>
               <div className="text-sm font-bold text-gray-700">転職回数</div>
-              <div>{toDisplayNumber(resume.job_change_count, '未入力')}</div>
+              <div className="lx-num">{toDisplayNumber(resume.job_change_count, '未入力')}</div>
             </div>
             <div>
               <div className="text-sm font-bold text-gray-700">入社希望時期</div>
@@ -224,6 +228,10 @@ export default async function CrmDetailPage({
                 <div>未入力</div>
               )}
             </div>
+          </div>
+          </FormSection>
+          <FormSection motion="none" index={2} title="アピール">
+          <div className="grid gap-4 text-sm text-gray-700 md:grid-cols-2">
             <div className="md:col-span-2">
               <div className="text-sm font-bold text-gray-700">活かせる経験・スキル</div>
               <p className="whitespace-pre-wrap">
@@ -239,13 +247,13 @@ export default async function CrmDetailPage({
               <p className="whitespace-pre-wrap">{toText(resume.summary, '未入力')}</p>
             </div>
           </div>
+          </FormSection>
+          </div>
         </section>
 
         <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <h2 className="text-base font-semibold text-gray-900">
-            学歴: {sortedEducations.length}件
-          </h2>
-          <div className="mt-3 space-y-3 text-sm text-gray-700">
+          <FormSection motion="none" index={3} title={`学歴 ${sortedEducations.length}件`}>
+          <div className="space-y-3 text-sm text-gray-700">
             {sortedEducations.length === 0 ? (
               <p className="text-gray-500">学歴情報は登録されていません。</p>
             ) : (
@@ -262,7 +270,7 @@ export default async function CrmDetailPage({
                     <div className="text-xs text-gray-500">
                       {toText(edu.department, '学部/学科未入力')}
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="lx-num text-xs text-gray-500">
                       {start || '入学時期未入力'} {end ? `〜 ${end}` : ''}
                     </div>
                   </div>
@@ -270,13 +278,12 @@ export default async function CrmDetailPage({
               })
             )}
           </div>
+          </FormSection>
         </section>
 
         <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <h2 className="text-base font-semibold text-gray-900">
-            職歴: {sortedWorks.length}件
-          </h2>
-          <div className="mt-3 space-y-3 text-sm text-gray-700">
+          <FormSection motion="none" index={4} title={`職歴 ${sortedWorks.length}件`}>
+          <div className="space-y-3 text-sm text-gray-700">
             {sortedWorks.length === 0 ? (
               <p className="text-gray-500">職歴情報は登録されていません。</p>
             ) : (
@@ -297,7 +304,7 @@ export default async function CrmDetailPage({
                     <div className="text-xs text-gray-500">
                       {toText(work.department, '部署未入力')} / {toText(work.position, '役職未入力')}
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="lx-num text-xs text-gray-500">
                       {start || '開始時期未入力'} {end ? `〜 ${end}` : ''}
                     </div>
                     {tags.length > 0 ? (
@@ -312,6 +319,7 @@ export default async function CrmDetailPage({
               })
             )}
           </div>
+          </FormSection>
         </section>
       </div>
     </AppShell>
