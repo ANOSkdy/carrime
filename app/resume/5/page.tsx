@@ -4,6 +4,9 @@ import React from 'react';
 import { useStepRouter } from '@/lib/navigation/use-step-router';
 import { Controller, useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/Button';
+import { PageIntro } from '@/components/layout/PageIntro';
+import { FormSection } from '@/components/layout/FormSection';
+import { stagger } from '@/lib/ui/stagger';
 import { TagSelector } from '@/components/ui/TagSelector';
 import { ensureResumeId, saveResumePatchInBackground } from '@/lib/storage/resume-save';
 
@@ -43,14 +46,16 @@ export default function ResumeStep5() {
   };
 
   return (
-    <div>
-      <h2 className="text-xl font-bold mb-6">希望条件の入力</h2>
-      <p className="text-sm text-gray-500 mb-6">希望する職種や業界を選択してください (最大3つまで)</p>
+    <div className="lx">
+      <PageIntro
+        eyebrow="Step 05 — Preferences"
+        title="希望条件の入力"
+        description="希望する職種や業界を選択してください (最大3つまで)"
+      />
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-12">
         {/* 希望職種 */}
-        <div>
-          <label className="block text-sm font-bold text-gray-700 mb-2">希望職種</label>
+        <FormSection index={0} title="希望職種">
           <div className="bg-gray-50 p-4 rounded border">
             <Controller
               name="desired_occupations"
@@ -60,11 +65,10 @@ export default function ResumeStep5() {
               )}
             />
           </div>
-        </div>
+        </FormSection>
 
         {/* 希望業界 */}
-        <div>
-          <label className="block text-sm font-bold text-gray-700 mb-2">希望業界</label>
+        <FormSection index={1} title="希望業界">
           <div className="bg-gray-50 p-4 rounded border">
             <Controller
               name="desired_industries"
@@ -72,11 +76,10 @@ export default function ResumeStep5() {
               render={({ field }) => <TagSelector category="industry" selected={field.value} onChange={field.onChange} />}
             />
           </div>
-        </div>
+        </FormSection>
 
         {/* 希望勤務地 */}
-        <div>
-          <label className="block text-sm font-bold text-gray-700 mb-2">希望勤務地</label>
+        <FormSection index={2} title="希望勤務地">
           <div className="bg-gray-50 p-4 rounded border">
             <Controller
               name="desired_locations"
@@ -84,11 +87,10 @@ export default function ResumeStep5() {
               render={({ field }) => <TagSelector category="location" selected={field.value} onChange={field.onChange} />}
             />
           </div>
-        </div>
+        </FormSection>
 
         {/* 資格・免許 */}
-        <div>
-          <label className="block text-sm font-bold text-gray-700 mb-2">資格・免許</label>
+        <FormSection index={3} title="資格・免許">
           <div className="bg-gray-50 p-4 rounded border">
             <Controller
               name="licenses_qualifications"
@@ -96,15 +98,19 @@ export default function ResumeStep5() {
               render={({ field }) => <TagSelector category="license" selected={field.value} onChange={field.onChange} />}
             />
           </div>
-        </div>
+        </FormSection>
 
-        <div className="flex justify-between pt-4">
-          <Button type="button" variant="outline" onClick={() => router.back()}>
-            戻る
-          </Button>
-          <Button type="submit" isLoading={isSubmitting}>
-            入力を完了してCV作成へ
-          </Button>
+        <div className="lx-reveal flex gap-3 pt-4" style={stagger(5)}>
+          <div className="min-w-0 flex-1">
+            <Button type="button" variant="outline" onClick={() => router.back()}>
+              戻る
+            </Button>
+          </div>
+          <div className="lx-sheen min-w-0 flex-1">
+            <Button type="submit" isLoading={isSubmitting}>
+              入力を完了してCV作成へ
+            </Button>
+          </div>
         </div>
       </form>
     </div>

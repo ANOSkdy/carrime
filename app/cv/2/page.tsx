@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useStepRouter } from '@/lib/navigation/use-step-router';
 import { Button } from '@/components/ui/Button';
+import { PageIntro } from '@/components/layout/PageIntro';
+import { stagger } from '@/lib/ui/stagger';
 import { BRAND_STORAGE_KEYS, getStorageItemWithLegacyFallback } from '@/lib/storage/branding';
 
 export default function CVStep2() {
@@ -100,8 +102,12 @@ export default function CVStep2() {
   };
 
   return (
-    <div>
-      <h2 className="text-xl font-bold mb-4">自己PR</h2>
+    <div className="lx">
+      <PageIntro
+        eyebrow="Step 07 — Self PR"
+        title="自己PR"
+        description="AIが生成した自己PRを確認し、自由に編集できます。"
+      />
       
       <div className="bg-blue-50 p-4 rounded mb-6">
         <h3 className="font-bold text-sm mb-2 text-blue-800">AI アシスタント</h3>
@@ -122,9 +128,13 @@ export default function CVStep2() {
         />
       </div>
 
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={() => router.back()}>戻る</Button>
-        <Button onClick={onSave} disabled={!generatedPR}>保存して次へ</Button>
+      <div className="lx-reveal flex gap-3" style={stagger(3)}>
+        <div className="min-w-0 flex-1">
+          <Button variant="outline" onClick={() => router.back()}>戻る</Button>
+        </div>
+        <div className="lx-sheen min-w-0 flex-1">
+          <Button onClick={onSave} disabled={!generatedPR}>保存して次へ</Button>
+        </div>
       </div>
     </div>
   );

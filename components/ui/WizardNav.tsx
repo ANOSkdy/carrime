@@ -17,7 +17,7 @@ export const WizardNav = ({ currentStep, totalSteps, labels, className = '', var
       <div className="relative flex items-start justify-between gap-2">
         <div className="absolute left-0 right-0 top-5 -z-10 h-1 bg-gray-200">
           <div
-            className="h-full origin-left bg-blue-600 transition-[width] duration-[var(--motion-duration-base)] ease-[var(--motion-ease-out)]"
+            className="h-full origin-left bg-blue-600 transition-[width] duration-[var(--motion-duration-reveal)] ease-[var(--motion-ease-out)]"
             style={{ width: `${totalSteps > 1 ? ((Math.min(currentStep, totalSteps) - 1) / (totalSteps - 1)) * 100 : 0}%` }}
           />
         </div>

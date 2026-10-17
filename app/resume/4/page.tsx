@@ -7,6 +7,9 @@ import { Input } from '@/components/form/Input';
 import { Textarea } from '@/components/form/Textarea';
 import { YearMonthFields } from '@/components/form/YearMonthFields';
 import { Button } from '@/components/ui/Button';
+import { PageIntro } from '@/components/layout/PageIntro';
+import { FormSection } from '@/components/layout/FormSection';
+import { stagger } from '@/lib/ui/stagger';
 import { BRAND_STORAGE_KEYS, getStorageItemWithLegacyFallback } from '@/lib/storage/branding';
 
 type Work = {
@@ -106,11 +109,11 @@ export default function ResumeStep4() {
   };
 
   return (
-    <div>
-      <h2 className="text-xl font-bold mb-6">職歴の入力</h2>
-      
-      {/* 登録済みリスト */}
-      <div className="mb-8 space-y-4">
+    <div className="lx">
+      <PageIntro eyebrow="Step 04 — Career" title="職歴の入力" description="これまでの勤務先を登録してください。業務内容はAIによる職務要約にも活用されます。" />
+      <div className="space-y-12">
+      <FormSection index={0} title="登録済みの職歴">
+      <div className="space-y-4">
         {loading && <p className="text-sm text-gray-400">職歴を読み込み中...</p>}
         {!loading && works.length === 0 && <p className="text-gray-500">職歴はまだ登録されていません。</p>}
         
@@ -148,12 +151,10 @@ export default function ResumeStep4() {
           </div>
         ))}
       </div>
+      </FormSection>
 
-      <hr className="my-6" />
-
-      {/* 新規追加フォーム */}
-      <div className="bg-blue-50 p-5 rounded-md mb-6">
-        <h3 className="font-bold text-sm mb-4 text-blue-800">職歴を追加する</h3>
+      <FormSection index={1} title="職歴を追加">
+      <div className="bg-blue-50 p-5 rounded-md">
         <form onSubmit={handleSubmit(onAdd)} className="@container space-y-4">
           <div className="grid grid-cols-1 gap-4 @md:grid-cols-2">
             <Input label="企業名" {...register('company_name', { required: true })} error={errors.company_name ? '必須です' : undefined} placeholder="株式会社〇〇" containerClassName="mb-0" />
@@ -276,10 +277,16 @@ export default function ResumeStep4() {
           </div>
         </form>
       </div>
+      </FormSection>
 
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={() => router.back()}>戻る</Button>
-        <Button onClick={onNext} disabled={works.length === 0}>次へ進む</Button>
+      <div className="lx-reveal flex gap-3" style={stagger(3)}>
+        <div className="min-w-0 flex-1">
+          <Button variant="outline" onClick={() => router.back()}>戻る</Button>
+        </div>
+        <div className="lx-sheen min-w-0 flex-1">
+          <Button onClick={onNext} disabled={works.length === 0}>次へ進む</Button>
+        </div>
+      </div>
       </div>
     </div>
   );
