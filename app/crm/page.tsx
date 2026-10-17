@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { headers } from 'next/headers';
 import { AppShell } from '@/components/layout/AppShell';
 import { listResumes } from '@/lib/db/resume';
+import { stagger } from '@/lib/ui/stagger';
 
 type SearchParams = {
   q?: string | string[];
@@ -9,6 +10,8 @@ type SearchParams = {
   cursor?: string | string[];
   cursorStack?: string | string[];
 };
+
+const dash = <span className="text-gray-300">—</span>;
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
@@ -72,7 +75,7 @@ export default async function CrmPage({
   if (accessError) {
     return (
       <AppShell title="CRM / 応募者一覧">
-        <div className="rounded-xl border border-red-200 bg-white p-4 text-sm text-red-600 shadow-sm">
+        <div className="lx-fade rounded-xl border border-red-200 bg-white p-4 text-sm text-red-600 shadow-sm">
           {accessError}
         </div>
       </AppShell>
@@ -93,7 +96,7 @@ export default async function CrmPage({
   } catch (error: any) {
     return (
       <AppShell title="CRM / 応募者一覧">
-        <div className="rounded-xl border border-red-200 bg-white p-4 text-sm text-red-600 shadow-sm">
+        <div className="lx-fade rounded-xl border border-red-200 bg-white p-4 text-sm text-red-600 shadow-sm">
           データ取得中にエラーが発生しました。{error?.message ?? ''}
         </div>
       </AppShell>
@@ -107,10 +110,15 @@ export default async function CrmPage({
 
   return (
     <AppShell title="CRM / 応募者一覧">
-      <div className="space-y-4">
+      <div className="lx space-y-4">
         <form className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm" method="get">
           <div className="space-y-3">
-            <label className="block text-sm font-semibold text-gray-800">検索</label>
+            <div className="flex items-baseline justify-between gap-3">
+              <label className="block text-[11px] font-medium tracking-[0.2em] text-gray-500">検索</label>
+              <span className="lx-num text-xs text-gray-500">
+                <span className="text-base font-semibold text-gray-900">{data.length}</span> 件を表示
+              </span>
+            </div>
             <div className="flex flex-col gap-2 sm:flex-row">
               <input
                 type="text"
@@ -136,17 +144,18 @@ export default async function CrmPage({
           ) : (
             <>
               <div className="divide-y divide-gray-200 md:hidden">
-                {data.map((item) => {
+                {data.map((item, index) => {
                   const href = { pathname: `/crm/${item.resume_id}`, query: { from: returnTo } };
                   return (
                     <Link
                       key={item.resume_id}
                       href={href}
-                      className="block space-y-2 p-4 text-sm transition hover:bg-blue-50/40"
+                      className="lx-card lx-fade block space-y-2 p-4 text-sm transition hover:bg-blue-50/40"
+                      style={stagger(index, 10)}
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-semibold text-gray-500">ID</span>
-                        <span className="text-xs font-semibold text-blue-600">{item.resume_id}</span>
+                        <span className="font-mono lx-num text-xs font-semibold text-blue-600">{item.resume_id}</span>
                       </div>
                       <div className="grid gap-2 text-sm text-gray-800">
                         <div>
@@ -155,23 +164,23 @@ export default async function CrmPage({
                         </div>
                         <div>
                           <p className="text-xs font-semibold text-gray-500">フリガナ</p>
-                          <p className="text-gray-700">{item.furigana || '-'}</p>
+                          <p className="text-gray-700">{item.furigana || dash}</p>
                         </div>
                         <div>
                           <p className="text-xs font-semibold text-gray-500">メール</p>
-                          <p className="text-gray-700">{item.contactEmail ?? ''}</p>
+                          <p className="text-gray-700">{item.contactEmail || dash}</p>
                         </div>
                         <div>
                           <p className="text-xs font-semibold text-gray-500">電話</p>
-                          <p className="text-gray-700">{item.contactPhone ?? ''}</p>
+                          <p className="text-gray-700">{item.contactPhone || dash}</p>
                         </div>
                         <div>
                           <p className="text-xs font-semibold text-gray-500">現在</p>
-                          <p className="text-gray-700">{item.currentStatus ?? ''}</p>
+                          <p className="text-gray-700">{item.currentStatus || dash}</p>
                         </div>
                         <div>
                           <p className="text-xs font-semibold text-gray-500">住所</p>
-                          <p className="text-gray-500">{item.addressCity ?? ''}</p>
+                          <p className="text-gray-500">{item.addressCity || dash}</p>
                         </div>
                       </div>
                     </Link>
@@ -180,7 +189,7 @@ export default async function CrmPage({
               </div>
               <div className="hidden overflow-x-auto md:block">
                 <table className="min-w-full divide-y divide-gray-200 text-sm">
-                  <thead className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  <thead className="bg-gray-50 text-left text-[11px] font-medium uppercase tracking-[0.14em] text-gray-500">
                     <tr>
                       <th className="px-4 py-3">ID</th>
                       <th className="px-4 py-3">氏名</th>
@@ -192,43 +201,43 @@ export default async function CrmPage({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {data.map((item) => {
+                    {data.map((item, index) => {
                       const href = { pathname: `/crm/${item.resume_id}`, query: { from: returnTo } };
                       return (
-                        <tr key={item.resume_id} className="hover:bg-blue-50/40">
+                        <tr key={item.resume_id} className="lx-row lx-fade hover:bg-blue-50/40" style={stagger(index, 10)}>
                           <td className="p-0 text-xs font-semibold text-gray-700">
-                            <Link href={href} className="block px-4 py-3 text-blue-600 hover:text-blue-700">
+                            <Link href={href} className="block px-4 py-3.5 font-mono lx-num text-blue-600 hover:text-blue-700">
                               {item.resume_id}
                             </Link>
                           </td>
                           <td className="p-0 text-gray-900">
-                            <Link href={href} className="block px-4 py-3">
+                            <Link href={href} className="block px-4 py-3.5 font-medium tracking-[0.04em]">
                               {item.nameKanji}
                             </Link>
                           </td>
                           <td className="p-0 text-gray-700">
-                            <Link href={href} className="block px-4 py-3">
-                              {item.furigana || '-'}
+                            <Link href={href} className="block px-4 py-3.5">
+                              {item.furigana || dash}
                             </Link>
                           </td>
                           <td className="p-0 text-gray-700">
-                            <Link href={href} className="block px-4 py-3">
-                              {item.contactEmail ?? ''}
+                            <Link href={href} className="block px-4 py-3.5">
+                              {item.contactEmail || dash}
                             </Link>
                           </td>
                           <td className="p-0 text-gray-700">
-                            <Link href={href} className="block px-4 py-3">
-                              {item.contactPhone ?? ''}
+                            <Link href={href} className="block px-4 py-3.5 lx-num">
+                              {item.contactPhone || dash}
                             </Link>
                           </td>
                           <td className="p-0 text-gray-700">
-                            <Link href={href} className="block px-4 py-3">
-                              {item.currentStatus ?? ''}
+                            <Link href={href} className="block px-4 py-3.5">
+                              {item.currentStatus || dash}
                             </Link>
                           </td>
                           <td className="p-0 text-gray-500">
-                            <Link href={href} className="block px-4 py-3">
-                              {item.addressCity ?? ''}
+                            <Link href={href} className="block px-4 py-3.5">
+                              {item.addressCity || dash}
                             </Link>
                           </td>
                         </tr>
@@ -244,7 +253,7 @@ export default async function CrmPage({
         <div className="flex items-center justify-between">
           {hasPrev ? (
             <Link
-              className="text-sm font-medium text-blue-600 hover:text-blue-700"
+              className="lx-link text-sm font-medium text-blue-600 hover:text-blue-700"
               href={buildQueryString({
                 q: q || undefined,
                 pageSize: String(pageSize),
@@ -259,7 +268,7 @@ export default async function CrmPage({
           )}
           {nextStack ? (
             <Link
-              className="text-sm font-medium text-blue-600 hover:text-blue-700"
+              className="lx-link text-sm font-medium text-blue-600 hover:text-blue-700"
               href={buildQueryString({
                 q: q || undefined,
                 pageSize: String(pageSize),
