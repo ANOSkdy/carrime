@@ -8,6 +8,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { ResumeSchema } from '@/lib/validation/schemas';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/form/Input';
+import { Textarea } from '@/components/form/Textarea';
+import { Select } from '@/components/ui/Select';
 import { BRAND_STORAGE_KEYS, getStorageItemWithLegacyFallback } from '@/lib/storage/branding';
 import { ensureResumeId, hasPendingResumeSave, retryPendingResumeSave, saveResumeInBackground } from '@/lib/storage/resume-save';
 
@@ -137,6 +139,14 @@ export default function ResumeStep1() {
     }
   };
 
+  const onInvalid = () => {
+    requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLElement>('[aria-invalid="true"]')
+        ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
+  };
+
   const onSubmit: SubmitHandler<FormInput> = (data) => {
     const resumeId = ensureResumeId();
     const payload = {
@@ -154,8 +164,8 @@ export default function ResumeStep1() {
     <div>
       <h2 className="text-xl font-bold mb-6">基本情報の入力</h2>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="@container space-y-6">
+        <div className="grid grid-cols-1 gap-x-3 @md:grid-cols-2">
           <Input
             label="姓 (漢字)"
             {...register('last_name_kanji')}
@@ -170,7 +180,7 @@ export default function ResumeStep1() {
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-x-3 @md:grid-cols-2">
           <Input
             label="姓 (カナ)"
             {...register('last_name_kana')}
@@ -185,73 +195,76 @@ export default function ResumeStep1() {
           />
         </div>
 
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">生年月日</label>
-          <div className="flex flex-wrap gap-3">
-            <div className="w-28 flex-1 min-w-[5rem] max-w-[7rem]">
-              <input
-                type="number"
-                {...register('dob_year', { valueAsNumber: true })}
-                className="w-full rounded border px-3 py-2"
-              />
-              <span className="text-xs text-gray-500">年</span>
-            </div>
-            <div className="w-24 flex-1 min-w-[4.5rem] max-w-[6rem]">
-              <input
-                type="number"
-                {...register('dob_month', { valueAsNumber: true })}
-                className="w-full rounded border px-3 py-2"
-              />
-              <span className="text-xs text-gray-500">月</span>
-            </div>
-            <div className="w-24 flex-1 min-w-[4.5rem] max-w-[6rem]">
-              <input
-                type="number"
-                {...register('dob_day', { valueAsNumber: true })}
-                className="w-full rounded border px-3 py-2"
-              />
-              <span className="text-xs text-gray-500">日</span>
-            </div>
+        <fieldset>
+          <legend className="mb-1 block text-sm font-medium text-gray-700">生年月日</legend>
+          <div className="grid grid-cols-[1.4fr_1fr_1fr] gap-2">
+            <Input
+              type="number"
+              inputMode="numeric"
+              aria-label="生年（年）"
+              suffix="年"
+              containerClassName="mb-0"
+              {...register('dob_year', { valueAsNumber: true })}
+            />
+            <Input
+              type="number"
+              inputMode="numeric"
+              aria-label="生月（月）"
+              suffix="月"
+              containerClassName="mb-0"
+              {...register('dob_month', { valueAsNumber: true })}
+            />
+            <Input
+              type="number"
+              inputMode="numeric"
+              aria-label="生日（日）"
+              suffix="日"
+              containerClassName="mb-0"
+              {...register('dob_day', { valueAsNumber: true })}
+            />
           </div>
-          {errors.dob_year && <p className="mt-1 text-sm text-red-500">正しい日付を入力してください</p>}
-        </div>
+          {errors.dob_year && <p className="mt-1 text-sm text-red-600">正しい日付を入力してください</p>}
+        </fieldset>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">性別</label>
-          <select {...register('gender')} className="w-full px-3 py-2 border rounded bg-white">
+        <Select label="性別" {...register('gender')}>
             <option value="男性">男性</option>
             <option value="女性">女性</option>
             <option value="その他">その他</option>
-          </select>
-        </div>
+          </Select>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-x-3 @md:grid-cols-2">
           <Input
             label="郵便番号"
             {...register('postal_code')}
             error={errors.postal_code?.message}
             placeholder="0600001"
+            inputMode="numeric"
+            autoComplete="postal-code"
+            maxLength={8}
           />
           <Input
             label="都道府県"
             {...register('address_prefecture')}
             error={errors.address_prefecture?.message}
             placeholder="北海道"
+            autoComplete="address-level1"
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-x-3 @md:grid-cols-2">
           <Input
             label="市区町村"
             {...register('address_city')}
             error={errors.address_city?.message}
             placeholder="札幌市中央区"
+            autoComplete="address-level2"
           />
           <Input
             label="番地・建物名"
             {...register('address_line1')}
             error={errors.address_line1?.message}
             placeholder="北1条西3丁目 ○○ビル 5F"
+            autoComplete="address-line1"
           />
         </div>
 
@@ -262,19 +275,24 @@ export default function ResumeStep1() {
           placeholder="101号室"
         />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-x-3 @md:grid-cols-2">
           <Input
             label="メールアドレス"
             {...register('email')}
             error={errors.email?.message}
             placeholder="example@mail.com"
             type="email"
+            inputMode="email"
+            autoComplete="email"
           />
           <Input
             label="電話番号"
             {...register('phone_number')}
             error={errors.phone_number?.message}
             placeholder="09012345678"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
           />
         </div>
 
@@ -293,17 +311,12 @@ export default function ResumeStep1() {
 
           {useSeparateContact && (
             <div className="space-y-3 rounded-md border border-gray-200 bg-gray-50 p-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">連絡先住所</label>
-                <textarea
-                  {...register('contactAddress')}
-                  className="w-full rounded border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows={3}
-                />
-                {errors.contactAddress?.message && (
-                  <p className="mt-1 text-sm text-red-600">{errors.contactAddress.message}</p>
-                )}
-              </div>
+              <Textarea
+                label="連絡先住所"
+                rows={3}
+                {...register('contactAddress')}
+                error={errors.contactAddress?.message}
+              />
 
               <Input
                 label="連絡先電話番号"
@@ -323,9 +336,7 @@ export default function ResumeStep1() {
           )}
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">扶養家族数（配偶者を除く）</label>
-          <select {...register('dependents_count')} className="w-full px-3 py-2 border rounded bg-white">
+        <Select label="扶養家族数（配偶者を除く）" {...register('dependents_count')}>
             <option value="">選択してください</option>
             <option value="0">0</option>
             <option value="1">1</option>
@@ -333,8 +344,7 @@ export default function ResumeStep1() {
             <option value="3">3</option>
             <option value="4">4</option>
             <option value="5+">5+</option>
-          </select>
-        </div>
+          </Select>
 
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700">家族・扶養</label>

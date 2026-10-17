@@ -3,6 +3,9 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
+import { Input } from '@/components/form/Input';
+import { Textarea } from '@/components/form/Textarea';
+import { YearMonthFields } from '@/components/form/YearMonthFields';
 import { Button } from '@/components/ui/Button';
 import { BRAND_STORAGE_KEYS, getStorageItemWithLegacyFallback } from '@/lib/storage/branding';
 
@@ -151,51 +154,25 @@ export default function ResumeStep4() {
       {/* 新規追加フォーム */}
       <div className="bg-blue-50 p-5 rounded-md mb-6">
         <h3 className="font-bold text-sm mb-4 text-blue-800">職歴を追加する</h3>
-        <form onSubmit={handleSubmit(onAdd)} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-gray-600 mb-1">企業名</label>
-              <input {...register('company_name', { required: true })} className="w-full p-2 border rounded text-sm" placeholder="株式会社〇〇" />
-              {errors.company_name && <span className="text-red-500 text-xs">必須です</span>}
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-600 mb-1">部署名</label>
-              <input {...register('department')} className="w-full p-2 border rounded text-sm" placeholder="営業部" />
-            </div>
+        <form onSubmit={handleSubmit(onAdd)} className="@container space-y-4">
+          <div className="grid grid-cols-1 gap-4 @md:grid-cols-2">
+            <Input label="企業名" {...register('company_name', { required: true })} error={errors.company_name ? '必須です' : undefined} placeholder="株式会社〇〇" containerClassName="mb-0" />
+            <Input label="部署名" {...register('department')} placeholder="営業部" containerClassName="mb-0" />
           </div>
 
-          <div>
-             <label className="block text-xs font-bold text-gray-600 mb-1">役職</label>
-             <input {...register('position')} className="w-full p-2 border rounded text-sm" placeholder="メンバー" />
-          </div>
+          <Input label="役職" {...register('position')} placeholder="メンバー" containerClassName="mb-0" />
           
-          <div className="flex flex-wrap gap-4 items-end">
+          <div className="grid grid-cols-1 items-end gap-3 @md:grid-cols-[1fr_auto_1fr]">
+            <YearMonthFields label="入社" year={register('start_year', { valueAsNumber: true })} month={register('start_month', { valueAsNumber: true })} />
+            <span className="text-center @md:mb-3">〜</span>
             <div>
-              <label className="block text-xs font-bold text-gray-600 mb-1">入社</label>
-              <div className="flex gap-1">
-                <input type="number" {...register('start_year', { valueAsNumber: true })} className="w-16 p-2 border rounded text-sm" />
-                <span className="self-center text-xs">年</span>
-                <input type="number" {...register('start_month', { valueAsNumber: true })} className="w-12 p-2 border rounded text-sm" />
-                <span className="self-center text-xs">月</span>
-              </div>
-            </div>
-            <span className="mb-3">〜</span>
-            <div>
-              <label className="block text-xs font-bold text-gray-600 mb-1">退社</label>
-              <div className="flex gap-1 items-center">
                  {!isCurrent ? (
-                   <>
-                    <input type="number" {...register('end_year', { valueAsNumber: true })} className="w-16 p-2 border rounded text-sm" />
-                    <span className="self-center text-xs">年</span>
-                    <input type="number" {...register('end_month', { valueAsNumber: true })} className="w-12 p-2 border rounded text-sm" />
-                    <span className="self-center text-xs">月</span>
-                   </>
+                   <YearMonthFields label="退社" year={register('end_year', { valueAsNumber: true })} month={register('end_month', { valueAsNumber: true })} />
                  ) : (
                    <span className="text-sm font-bold text-green-600 px-2">現在在籍中</span>
                  )}
-              </div>
             </div>
-            <div className="mb-2">
+            <div className="mb-2 @md:col-span-3">
               <label className="flex items-center text-xs cursor-pointer">
                 <input type="checkbox" {...register('is_current')} className="mr-1" />
                 現在在籍中
@@ -291,7 +268,7 @@ export default function ResumeStep4() {
                 )}
               </div>
             </div>
-            <textarea {...register('description')} className="w-full p-2 border rounded text-sm h-24" placeholder="法人営業を担当。新規開拓を中心に..." />
+            <Textarea {...register('description')} rows={4} placeholder="法人営業を担当。新規開拓を中心に..." containerClassName="mb-0" />
           </div>
 
           <div className="flex justify-end">
