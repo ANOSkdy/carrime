@@ -1,8 +1,6 @@
 import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
 import { listResumes } from '@/lib/db/resume';
-import { getCrmSessionFromHeaders } from '@/lib/crm/session';
-import { getCrmAccess } from '@/lib/crm/access';
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
@@ -18,9 +16,13 @@ const parsePageSize = (value: string | null) => {
 };
 
 export async function GET(request: Request) {
-  const access = getCrmAccess(await getCrmSessionFromHeaders(request.headers));
-  if (access === 'anonymous') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (access !== 'allowed') return NextResponse.json({ error: access === 'password-change' ? 'PASSWORD_CHANGE_REQUIRED' : 'Forbidden' }, { status: 403 });
+  const token = process.env.CRM_ACCESS_TOKEN;
+  if (token) {
+    const provided = request.headers.get('x-crm-token');
+    if (!provided || provided !== token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+  }
 
   const { searchParams } = new URL(request.url);
   const pageSize = parsePageSize(searchParams.get('pageSize'));
