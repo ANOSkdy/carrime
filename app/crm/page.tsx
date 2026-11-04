@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { headers } from 'next/headers';
-import { AppShell } from '@/components/layout/AppShell';
+import { CrmShell as AppShell } from '@/components/crm/CrmShell';
+import { requireCrmAdmin } from '@/lib/crm/session';
 import { listResumes } from '@/lib/db/resume';
 import { stagger } from '@/lib/ui/stagger';
 
@@ -36,22 +36,12 @@ const buildQueryString = (params: Record<string, string | undefined>) => {
   return query ? `?${query}` : '';
 };
 
-const getAccessError = async () => {
-  const token = process.env.CRM_ACCESS_TOKEN;
-  if (!token) return null;
-  const provided = (await headers()).get('x-crm-token');
-  if (!provided || provided !== token) {
-    return 'このページにアクセスするための認証トークンが不足しています。';
-  }
-  return null;
-};
-
 export default async function CrmPage({
   searchParams,
 }: {
   searchParams?: SearchParams | Promise<SearchParams>;
 }) {
-  const accessError = await getAccessError();
+  await requireCrmAdmin();
   const resolvedSearchParams = searchParams ? await Promise.resolve(searchParams) : undefined;
   const q = normalizeParam(resolvedSearchParams?.q)?.trim() ?? '';
   const pageSize = parsePageSize(normalizeParam(resolvedSearchParams?.pageSize));
@@ -71,16 +61,6 @@ export default async function CrmPage({
     cursor: cursor || undefined,
   });
   const returnTo = returnQuery ? `/crm${returnQuery}` : '/crm';
-
-  if (accessError) {
-    return (
-      <AppShell title="CRM / 応募者一覧">
-        <div className="lx-fade rounded-xl border border-red-200 bg-white p-4 text-sm text-red-600 shadow-sm">
-          {accessError}
-        </div>
-      </AppShell>
-    );
-  }
 
   let data = [];
   let nextCursor: string | null = null;

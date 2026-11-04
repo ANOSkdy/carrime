@@ -1,24 +1,14 @@
 import type React from 'react';
 import { randomUUID } from 'crypto';
 import Link from 'next/link';
-import { headers } from 'next/headers';
-import { AppShell } from '@/components/layout/AppShell';
+import { CrmShell as AppShell } from '@/components/crm/CrmShell';
+import { requireCrmAdmin } from '@/lib/crm/session';
 import { FormSection } from '@/components/layout/FormSection';
 import { getResumeBundle } from '@/lib/db/resume';
 import { isValidResumeId, normalizeResumeId, normalizeReturnTo } from '@/lib/crm/resume-id';
 
 type SearchParams = {
   from?: string;
-};
-
-const getAccessError = async () => {
-  const token = process.env.CRM_ACCESS_TOKEN;
-  if (!token) return null;
-  const provided = (await headers()).get('x-crm-token');
-  if (!provided || provided !== token) {
-    return 'このページにアクセスするための認証トークンが不足しています。';
-  }
-  return null;
 };
 
 const formatYm = (year?: number, month?: number) => {
@@ -49,7 +39,7 @@ export default async function CrmDetailPage({
   params?: Record<string, unknown> | Promise<Record<string, unknown>>;
   searchParams?: SearchParams | Promise<SearchParams>;
 }) {
-  const accessError = await getAccessError();
+  await requireCrmAdmin();
   const resolvedParams = params ? await Promise.resolve(params) : {};
   const paramKeys = Object.keys(resolvedParams ?? {});
   const fallbackValue =
@@ -82,16 +72,6 @@ export default async function CrmDetailPage({
           <p>resume_id (raw): {resumeIdInfo.raw ?? 'undefined'}</p>
           <p>resume_id (normalized): {resumeIdInfo.normalized ?? 'undefined'}</p>
           <p>Trace ID: {traceId}</p>
-        </div>
-      </AppShell>
-    );
-  }
-
-  if (accessError) {
-    return (
-      <AppShell title="CRM / 応募者詳細">
-        <div className="rounded-xl border border-red-200 bg-white p-4 text-sm text-red-600 shadow-sm">
-          {accessError}
         </div>
       </AppShell>
     );
