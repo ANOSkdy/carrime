@@ -35,6 +35,8 @@ VercelではProduction・Preview・Developmentごとに指定できます。モ�
 
 ## CRM認証
 
+現在はPreviewでの検証に限定しています。ユーザーの明示的な承認があるまで、この機能をmainへマージしたり本番へ反映したりしないでください。
+
 `/crm`・`/crm/[id]` と管理用の一覧API `/api/data/resumes` は、管理者セッションが必要です。公開の履歴書作成フローは従来どおり利用できます。
 
 - 認証はBetter AuthとPostgreSQLを使用し、データは `crm_auth_*` の専用テーブルに保持します。
