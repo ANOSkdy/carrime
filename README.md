@@ -20,6 +20,19 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## AIモデルの設定
+
+要約・自己PR・職務経歴の生成は、サーバー側の環境変数を共通で使用します。
+
+| 環境変数 | 設定内容 |
+| --- | --- |
+| `GEMINI_API_KEY` | Gemini APIキー。ローカルでは `.env.local`、VercelではSecretとして保持します。 |
+| `GEMINI_MODEL` | 使用するモデルID。現在の設定は `gemini-3.5-flash-lite` です。 |
+
+`GEMINI_MODEL` はローカルの `.env.local` と、Vercelのプロジェクト設定の Environment Variables にConfigとして設定します。未設定・空文字の場合は、AI生成時に設定エラーになります。
+
+VercelではProduction・Preview・Developmentごとに指定できます。モデルを変更するときは環境変数を更新し、対象環境を再デプロイしてください。
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
