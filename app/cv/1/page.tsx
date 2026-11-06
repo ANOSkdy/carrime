@@ -6,7 +6,11 @@ import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/Button';
 import { PageIntro } from '@/components/layout/PageIntro';
 import { stagger } from '@/lib/ui/stagger';
-import { BRAND_STORAGE_KEYS, getStorageItemWithLegacyFallback } from '@/lib/storage/branding';
+import { BRAND_STORAGE_KEYS } from '@/lib/storage/branding';
+import { loadAiInputs } from '@/lib/storage/ai-inputs';
+import { AiErrorNotice } from '@/components/ui/AiErrorNotice';
+import { reportClientFailure, type ClientFailure } from '@/lib/ai/client';
+import { newCorrelationId } from '@/lib/observability/correlation';
 
 // 新しい4つの質問に対応するデータ型
 type AiInputData = {
@@ -19,27 +23,33 @@ type AiInputData = {
 export default function CVStep1() {
   const router = useStepRouter();
   const [openHint, setOpenHint] = useState<'pr_summary' | 'episode' | 'policy' | null>(null);
+  const [storageError, setStorageError] = useState<ClientFailure | null>(null);
   const { register, handleSubmit, setValue } = useForm<AiInputData>();
   const hintButtonClass =
     'inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-xs font-bold text-white shadow transition hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300';
 
   useEffect(() => {
     // 以前の入力があればロード
-    const saved = getStorageItemWithLegacyFallback(BRAND_STORAGE_KEYS.aiInputs.current, BRAND_STORAGE_KEYS.aiInputs.legacy);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      // 旧データ形式との互換性チェック（念のため）
-      if (parsed.pr_summary) {
-        setValue('pr_summary', parsed.pr_summary);
-        setValue('episode', parsed.episode);
-        setValue('policy', parsed.policy);
-        setValue('occupation', parsed.occupation);
-      }
+    const saved = loadAiInputs();
+    if (saved.status === 'ready') {
+      setValue('pr_summary', saved.inputs.pr_summary);
+      setValue('episode', saved.inputs.episode);
+      setValue('policy', saved.inputs.policy || '');
+      setValue('occupation', saved.inputs.occupation || '');
     }
   }, [setValue]);
 
   const onSubmit = (data: AiInputData) => {
-    localStorage.setItem(BRAND_STORAGE_KEYS.aiInputs.current, JSON.stringify(data));
+    try {
+      localStorage.setItem(BRAND_STORAGE_KEYS.aiInputs.current, JSON.stringify(data));
+      setStorageError(null);
+    } catch {
+      const failure = { code: 'CLIENT_STORAGE_ERROR', correlationId: newCorrelationId(), retryable: false,
+        message: '入力をブラウザに保存できませんでした。入力内容を控えたうえで、ブラウザの保存設定や空き容量を確認してください。' };
+      setStorageError(failure);
+      reportClientFailure('/api/ai/selfpr', failure);
+      return;
+    }
     router.push('/cv/2');
   };
 
@@ -131,9 +141,10 @@ export default function CVStep1() {
           />
         </div>
 
+      <AiErrorNotice error={storageError} preservesInput={false} />
       <div className="lx-reveal flex justify-end pt-4" style={stagger(4)}>
         <div className="lx-sheen">
-          <Button type="submit">次へ進みAI生成する</Button>
+          <Button type="submit">自己PRの生成へ進む</Button>
         </div>
       </div>
       {openHint && (

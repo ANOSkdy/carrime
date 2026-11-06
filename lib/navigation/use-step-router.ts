@@ -1,6 +1,6 @@
 'use client';
 
-import { startTransition, addTransitionType } from 'react';
+import { startTransition, addTransitionType, useMemo } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 
 const stepOf = (path: string | null | undefined) => {
@@ -16,21 +16,24 @@ export function useStepRouter() {
   const router = useRouter();
   const pathname = usePathname();
 
-  const withType = (type: 'nav-forward' | 'nav-back', action: () => void) => {
-    startTransition(() => {
-      addTransitionType(type);
-      action();
-    });
-  };
-
-  return {
-    push: (href: string) => {
-      const from = stepOf(pathname);
-      const to = stepOf(href);
-      const isBack = from !== null && to !== null && to < from;
-      withType(isBack ? 'nav-back' : 'nav-forward', () => router.push(href));
-    },
-    back: () => withType('nav-back', () => router.back()),
-    refresh: () => router.refresh(),
-  };
+  // Consumers use this object as an effect dependency. Keep its identity stable
+  // between renders so loading stored inputs cannot trigger a request loop.
+  return useMemo(() => {
+    const withType = (type: 'nav-forward' | 'nav-back', action: () => void) => {
+      startTransition(() => {
+        addTransitionType(type);
+        action();
+      });
+    };
+    return {
+      push: (href: string) => {
+        const from = stepOf(pathname);
+        const to = stepOf(href);
+        const isBack = from !== null && to !== null && to < from;
+        withType(isBack ? 'nav-back' : 'nav-forward', () => router.push(href));
+      },
+      back: () => withType('nav-back', () => router.back()),
+      refresh: () => router.refresh(),
+    };
+  }, [pathname, router]);
 }
