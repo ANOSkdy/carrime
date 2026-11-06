@@ -1,6 +1,14 @@
 import 'server-only';
+import { AsyncLocalStorage } from 'node:async_hooks';
 
 type QueryResult<T> = { rows: T[] };
+export type SqlStatement = { query: string; params: unknown[] };
+const metrics = new AsyncLocalStorage<{ requests: number }>();
+
+export async function measureDatabaseRequests<T>(run: () => Promise<T>) {
+  const state = { requests: 0 };
+  return metrics.run(state, async () => ({ value: await run(), requests: state.requests }));
+}
 
 type DatabaseEnvKey = 'DATABASE_URL_UNPOOLED' | 'DATABASE_URL' | 'NEON_DATABASE_URL';
 type EnvValueState = 'missing' | 'empty' | 'set';
@@ -114,39 +122,38 @@ const buildNeonHeaders = () => ({
   'Neon-Connection-String': resolveDatabaseUrl(),
 });
 
-export async function query<T>(text: string, params: unknown[] = []): Promise<QueryResult<T>> {
+async function execute(body: SqlStatement | { queries: SqlStatement[] }) {
+  const state = metrics.getStore();
+  if (state) state.requests++;
   const response = await fetch(getSqlEndpoint(), {
     method: 'POST',
-    headers: buildNeonHeaders(),
-    body: JSON.stringify({ query: text, params }),
+    headers: { ...buildNeonHeaders(), ...('queries' in body ? { 'Neon-Batch-Isolation-Level': 'ReadCommitted' } : {}) },
+    body: JSON.stringify(body),
     cache: 'no-store',
   });
 
   if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(`Postgres query failed (${response.status}) ${detail}`);
+    // Provider messages can echo query parameters or credentials.
+    throw new Error(`Postgres request failed (${response.status})`);
   }
 
-  const payload = (await response.json()) as { rows?: T[]; results?: Array<{ rows?: T[] }> };
-
-  if (Array.isArray(payload.rows)) return { rows: payload.rows };
-  if (Array.isArray(payload.results) && payload.results[0]?.rows) {
-    return { rows: payload.results[0].rows ?? [] };
-  }
-
-  return { rows: [] };
+  return response.json();
 }
 
-type TransactionClient = { query: typeof query };
+export async function query<T>(text: string, params: unknown[] = []): Promise<QueryResult<T>> {
+  const payload = await execute({ query: text, params });
+  if (!Array.isArray(payload.rows)) throw new Error('Invalid Postgres response');
+  return { rows: payload.rows };
+}
 
-export async function withTransaction<T>(fn: (client: TransactionClient) => Promise<T>) {
-  await query('BEGIN');
-  try {
-    const result = await fn({ query });
-    await query('COMMIT');
-    return result;
-  } catch (error) {
-    await query('ROLLBACK');
-    throw error;
+// Neon's queries envelope executes the entire batch as ONE transaction in ONE
+// HTTP request. Separate HTTP BEGIN/COMMIT calls do not share a session.
+export async function queryBatch<T>(statements: SqlStatement[]): Promise<QueryResult<T>[]> {
+  if (!statements.length) return [];
+  const payload = await execute({ queries: statements });
+  if (!Array.isArray(payload.results) || payload.results.length !== statements.length ||
+    payload.results.some((result: QueryResult<T> | null) => !result || !Array.isArray(result.rows))) {
+    throw new Error('Invalid Postgres batch response');
   }
+  return payload.results;
 }

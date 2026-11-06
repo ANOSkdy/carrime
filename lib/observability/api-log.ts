@@ -1,5 +1,5 @@
 export type ApiLogEvent = {
-  event: 'api.completed' | 'client.ai_failed' | 'crm.auth_completed';
+  event: 'api.completed' | 'client.ai_failed' | 'crm.auth_completed' | 'data.completed';
   correlationId: string;
   route: string;
   method: string;
@@ -8,6 +8,7 @@ export type ApiLogEvent = {
   code: string;
   stage: 'request' | 'validation' | 'configuration' | 'provider' | 'response' | 'network' | 'storage' | 'auth';
   upstreamStatus?: number;
+  dbRequests?: number;
 };
 
 export function writeApiLog(event: ApiLogEvent) {
@@ -24,6 +25,7 @@ export function writeApiLog(event: ApiLogEvent) {
     code: event.code,
     stage: event.stage,
     upstreamStatus: event.upstreamStatus,
+    dbRequests: event.dbRequests,
     environment: process.env.VERCEL_ENV || (process.env.NODE_ENV === 'production' ? 'production' : 'development'),
   };
   const line = JSON.stringify(row);

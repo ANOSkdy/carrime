@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { z } from 'zod';
-import { query, withTransaction } from '@/lib/db/postgres';
+import { query, queryBatch, type SqlStatement } from '@/lib/db/postgres';
 import { sendResumeStep5Notification } from '@/lib/email/resume-notification';
 import { ResumePatchSchema, ResumeSchema } from '@/lib/validation/schemas';
 
@@ -92,14 +92,18 @@ const mapDbResume = (row: Record<string, unknown>): Resume => {
     contactPhone: row.contact_phone,
     contactEmail: row.contact_email,
     dependents_count: row.dependents_count,
-    has_spouse: row.has_spouse,
-    spouse_is_dependent: row.spouse_is_dependent,
+    has_spouse: row.has_spouse ?? false,
+    spouse_is_dependent: row.spouse_is_dependent ?? false,
     job_change_count: row.job_change_count,
     current_status: row.current_status,
     desired_joining_date: row.desired_joining_date,
     transferable_skills: row.transferable_skills,
     self_pr: row.self_pr,
     summary: row.summary,
+    desired_occupations: row.desired_occupations,
+    desired_industries: row.desired_industries,
+    desired_locations: row.desired_locations,
+    licenses_qualifications: row.licenses_qualifications,
   });
 
   return {
@@ -145,68 +149,54 @@ export function mapResumeToDbFields(fields: ResumeUpdateFields): Record<string, 
 }
 
 
-const replaceDesiredConditions = async (
-  client: { query: typeof query },
-  resumePk: string,
-  payload: ResumeUpdateFields
-) => {
-  const desiredConditionMap: Array<[keyof ResumeUpdateFields, string]> = [
+const desiredConditionMap = [
     ['desired_occupations', 'occupation'],
     ['desired_industries', 'industry'],
     ['desired_locations', 'location'],
     ['licenses_qualifications', 'license'],
-  ];
+  ] as const;
 
-  const hasDesiredUpdate = desiredConditionMap.some(([key]) => Array.isArray(payload[key]));
-  if (!hasDesiredUpdate) return;
-
-  await client.query('delete from resume_desired_conditions where resume_id = $1', [resumePk]);
-
-  for (const [key, type] of desiredConditionMap) {
-    const values = payload[key];
-    if (!Array.isArray(values)) continue;
-
-    for (let i = 0; i < values.length; i += 1) {
-      const label = values[i];
-      if (typeof label !== 'string' || !label.trim()) continue;
-
-      await client.query(
-        `insert into resume_desired_conditions (resume_id, condition_type, label, sort_order)
-         values ($1, $2, $3, $4)`,
-        [resumePk, type, label.trim(), i]
-      );
-    }
-  }
+const groupDesiredConditions = (rows: Array<{ condition_type: string; label: string }>) => {
+  return Object.fromEntries(desiredConditionMap.map(([key, type]) => [
+    key, rows.filter((row) => row.condition_type === type).map((row) => row.label),
+  ]));
 };
 
-const loadDesiredConditions = async (resumePk: string) => {
-  const { rows } = await query<{
-    condition_type: string;
-    label: string;
-    sort_order: number;
-  }>(
-    `select condition_type, label, sort_order
-     from resume_desired_conditions
-     where resume_id = $1
-     order by condition_type asc, sort_order asc`,
-    [resumePk]
-  );
-
-  const grouped = {
-    desired_occupations: [] as string[],
-    desired_industries: [] as string[],
-    desired_locations: [] as string[],
-    licenses_qualifications: [] as string[],
-  };
-
-  rows.forEach((row) => {
-    if (row.condition_type === 'occupation') grouped.desired_occupations.push(row.label);
-    if (row.condition_type === 'industry') grouped.desired_industries.push(row.label);
-    if (row.condition_type === 'location') grouped.desired_locations.push(row.label);
-    if (row.condition_type === 'license') grouped.licenses_qualifications.push(row.label);
-  });
-
-  return grouped;
+// The parent UPSERT/UPDATE locks the resume until this HTTP batch commits.
+// Separate statements then see preceding committed replacements at READ COMMITTED.
+async function saveWithDesiredConditions(base: SqlStatement, resumeId: string, payload: ResumeUpdateFields) {
+  const supplied = desiredConditionMap.filter(([key]) => Array.isArray(payload[key]));
+  if (!supplied.length) {
+    return (await query<Record<string, unknown>>(base.query, base.params)).rows[0];
+  }
+  const entries = supplied.flatMap(([key, condition_type]) =>
+    (payload[key] as string[]).flatMap((label, sort_order) =>
+      label.trim() ? [{ condition_type, label: label.trim(), sort_order }] : []));
+  const results = await queryBatch<Record<string, unknown>>([
+    base,
+    {
+      query: `delete from resume_desired_conditions
+        where resume_id = (select id from resume_drafts where resume_id = $1)
+          and condition_type in (select jsonb_array_elements_text($2::jsonb))`,
+      params: [resumeId, JSON.stringify(supplied.map(([, type]) => type))],
+    },
+    {
+      query: `insert into resume_desired_conditions (resume_id, condition_type, label, sort_order)
+        select r.id, item.condition_type, item.label, item.sort_order
+        from resume_drafts r cross join jsonb_to_recordset($2::jsonb)
+          as item(condition_type text, label text, sort_order int)
+        where r.resume_id = $1`,
+      params: [resumeId, JSON.stringify(entries)],
+    },
+    {
+      query: `select condition_type, label from resume_desired_conditions
+        where resume_id = (select id from resume_drafts where resume_id = $1)
+        order by condition_type, sort_order, id`,
+      params: [resumeId],
+    },
+  ]);
+  const row = results[0].rows[0];
+  return row && { ...row, ...groupDesiredConditions(results[3].rows as Array<{ condition_type: string; label: string }>) };
 };
 
 export async function saveResumeDraft(payload: z.infer<typeof ResumeSchema>) {
@@ -217,9 +207,8 @@ export async function saveResumeDraft(payload: z.infer<typeof ResumeSchema>) {
       : `res_${Date.now()}`;
   const dob = buildDate(payload.dob_year, payload.dob_month, payload.dob_day);
 
-  const result = await withTransaction(async (client) => {
-    const { rows } = await client.query<Record<string, unknown>>(
-      `insert into resume_drafts (
+  const result = await saveWithDesiredConditions({
+    query: `insert into resume_drafts (
         resume_id, user_id, title, status,
         last_name_kanji, first_name_kanji, last_name_kana, first_name_kana,
         dob, gender, email, phone_number,
@@ -261,16 +250,12 @@ export async function saveResumeDraft(payload: z.infer<typeof ResumeSchema>) {
         dependents_count = excluded.dependents_count,
         has_spouse = excluded.has_spouse,
         spouse_is_dependent = excluded.spouse_is_dependent,
-        job_change_count = excluded.job_change_count,
-        current_status = excluded.current_status,
-        desired_joining_date = excluded.desired_joining_date,
-        transferable_skills = excluded.transferable_skills,
-        self_pr = excluded.self_pr,
-        summary = excluded.summary,
+        ${['job_change_count', 'current_status', 'desired_joining_date', 'transferable_skills', 'self_pr', 'summary']
+          .map((column) => `${column} = case when $31::jsonb ? '${column}' then excluded.${column} else resume_drafts.${column} end`).join(',\n        ')},
         profile_photo_url = coalesce(excluded.profile_photo_url, resume_drafts.profile_photo_url),
         updated_at = now()
       returning *`,
-      [
+    params: [
         resumeId,
         toNullableUuid(values.user_id),
         values.title ?? null,
@@ -301,34 +286,16 @@ export async function saveResumeDraft(payload: z.infer<typeof ResumeSchema>) {
         values.self_pr ?? null,
         values.summary ?? null,
         values.profile_photo_url ?? null,
-      ]
-    );
-
-    const row = rows[0];
-    if (!row || typeof row.id !== 'string') {
-      throw new Error('Failed to save resume');
-    }
-
-    await replaceDesiredConditions(client, row.id, payload);
-
-    return row;
-  });
-
-  const desired = await loadDesiredConditions(String(result.id));
-  return mapDbResume({ ...result, ...desired });
+        JSON.stringify(Object.keys(values)),
+      ],
+  }, resumeId, payload);
+  if (!result) throw new Error('Failed to save resume');
+  return mapDbResume(result);
 }
 
 export async function patchResumeDraft(payload: ResumePatchPayload): Promise<Resume> {
   const { resume_id, step5_complete, ...rest } = payload;
   const values = mapResumeToDbFields(rest);
-  let shouldSendStep5Notification = false;
-
-  const desiredPayload = {
-    desired_occupations: payload.desired_occupations,
-    desired_industries: payload.desired_industries,
-    desired_locations: payload.desired_locations,
-    licenses_qualifications: payload.licenses_qualifications,
-  };
 
   const columns: Array<[keyof typeof values, string]> = [
     ['title', 'title'],
@@ -390,46 +357,13 @@ export async function patchResumeDraft(payload: ResumePatchPayload): Promise<Res
     setClauses.push('step5_completed_at = coalesce(step5_completed_at, now())');
   }
 
-  const result = await withTransaction(async (client) => {
-    const { rows: existingRows } = await client.query<Record<string, unknown>>(
-      `select id, step5_completed_at, admin_notified_at
-       from resume_drafts where resume_id = $1 limit 1 for update`,
-      [resume_id]
-    );
-
-    const existingRow = existingRows[0];
-    if (!existingRow || typeof existingRow.id !== 'string') {
-      throw new Error('Resume not found for patch');
-    }
-
-    shouldSendStep5Notification = step5_complete === true && existingRow.admin_notified_at == null;
-
-    let row: Record<string, unknown> | undefined;
-
-    if (setClauses.length > 0) {
-      const { rows } = await client.query<Record<string, unknown>>(
-        `update resume_drafts
-         set ${setClauses.join(', ')}, updated_at = now()
-         where resume_id = $1
-         returning *`,
-        params
-      );
-      row = rows[0];
-    } else {
-      const { rows } = await client.query<Record<string, unknown>>(
-        `select * from resume_drafts where resume_id = $1 limit 1`,
-        [resume_id]
-      );
-      row = rows[0];
-    }
-
-    if (!row || typeof row.id !== 'string') {
-      throw new Error('Resume not found for patch');
-    }
-
-    await replaceDesiredConditions(client, row.id, desiredPayload);
-    return row;
-  });
+  setClauses.push('updated_at = now()');
+  const result = await saveWithDesiredConditions({
+    query: `update resume_drafts set ${setClauses.join(', ')} where resume_id = $1 returning *`,
+    params,
+  }, resume_id, rest);
+  if (!result) throw new Error('Resume not found for patch');
+  const shouldSendStep5Notification = step5_complete === true && result.admin_notified_at == null;
 
   if (shouldSendStep5Notification) {
     const correlationId = randomUUID();
@@ -462,8 +396,7 @@ export async function patchResumeDraft(payload: ResumePatchPayload): Promise<Res
     }
   }
 
-  const desired = await loadDesiredConditions(String(result.id));
-  return mapDbResume({ ...result, ...desired });
+  return mapDbResume(result);
 }
 
 export async function updateResumeFields(resumeIdentifier: string, fields: ResumeUpdateFields): Promise<Resume> {
@@ -491,8 +424,7 @@ export async function updateResumeFields(resumeIdentifier: string, fields: Resum
     throw new Error('Resume not found for profile photo update');
   }
 
-  const desired = await loadDesiredConditions(String(row.id));
-  return mapDbResume({ ...row, ...desired });
+  return mapDbResume(row);
 }
 
 export type ResumeListItem = {
@@ -548,7 +480,9 @@ export async function listResumes({
   if (q?.trim()) params.push(`%${q.trim()}%`);
 
   const { rows } = await query<Record<string, unknown>>(
-    `select * from resume_drafts
+    `select resume_id, last_name_kanji, first_name_kanji, last_name_kana, first_name_kana,
+       contact_email, email, contact_phone, phone_number, current_status, address_city
+     from resume_drafts
      ${whereSql}
      order by ${sortField} desc nulls last, resume_id asc
      limit $1 offset $2`,
@@ -576,72 +510,66 @@ export async function listResumes({
   };
 }
 
-const getResumeRowByIdentifier = async (resumeId: string) => {
-  const where = isUuid(resumeId) ? 'id = $1 or resume_id = $1' : 'resume_id = $1';
-  const { rows } = await query<Record<string, unknown>>(
-    `select * from resume_drafts where ${where} limit 1`,
-    [resumeId]
-  );
-  return rows[0] ?? null;
+const identifierWhere = (resumeId: string, alias = '') => {
+  const prefix = alias ? `${alias}.` : '';
+  return isUuid(resumeId)
+    ? `(${prefix}id = $1::uuid or ${prefix}resume_id = $1::text)`
+    : `${prefix}resume_id = $1`;
 };
+
+const educationColumns = `id, school_name, department, degree,
+  extract(year from start_date)::int as start_year,
+  extract(month from start_date)::int as start_month,
+  extract(year from end_date)::int as end_year,
+  extract(month from end_date)::int as end_month, is_current`;
+const workColumns = `id, company_name, department, position,
+  extract(year from start_date)::int as start_year,
+  extract(month from start_date)::int as start_month,
+  extract(year from end_date)::int as end_year,
+  extract(month from end_date)::int as end_month, is_current, description`;
+
+// These views deliberately avoid loading histories, generated text or photos
+// on screens that only need a profile or the saved self PR.
+export async function getResumeProfile(resumeId: string) {
+  const { rows } = await query<Record<string, unknown>>(
+    `select resume_id, last_name_kanji, first_name_kanji, last_name_kana, first_name_kana,
+       dob, gender, postal_code, address_prefecture, address_city, address_line1, address_line2,
+       phone_number, email, contact_address, contact_phone, contact_email,
+       dependents_count, has_spouse, spouse_is_dependent
+     from resume_drafts where ${identifierWhere(resumeId)} limit 1`, [resumeId]);
+  return rows[0] ? { resume: mapDbResume(rows[0]) } : null;
+}
+
+export async function getResumeSelfPr(resumeId: string) {
+  const { rows } = await query<{ resume_id: string; self_pr: string | null }>(
+    `select resume_id, self_pr from resume_drafts where ${identifierWhere(resumeId)} limit 1`, [resumeId]);
+  return rows[0] ? { resume: rows[0] } : null;
+}
 
 export async function getResumeBundle(resumeId: string): Promise<ResumeBundle | null> {
   if (typeof resumeId !== 'string' || !resumeId.trim()) return null;
 
   const trimmedResumeId = resumeId.trim();
-  const correlationId = randomUUID();
-
-  const resumeRow = await getResumeRowByIdentifier(trimmedResumeId);
-  if (!resumeRow || typeof resumeRow.id !== 'string') {
-    console.warn('Resume not found', { correlationId, resumeId: trimmedResumeId });
-    return null;
-  }
-
-  const [desired, educationsRes, worksRes] = await Promise.all([
-    loadDesiredConditions(resumeRow.id),
-    query<Record<string, unknown>>(
-      `select
-         id,
-         school_name,
-         department,
-         degree,
-         extract(year from start_date)::int as start_year,
-         extract(month from start_date)::int as start_month,
-         extract(year from end_date)::int as end_year,
-         extract(month from end_date)::int as end_month,
-         is_current
-       from resume_educations
-       where resume_id = $1
-       order by sort_order asc, start_date asc nulls last`,
-      [resumeRow.id]
-    ),
-    query<Record<string, unknown>>(
-      `select
-         id,
-         company_name,
-         department,
-         position,
-         extract(year from start_date)::int as start_year,
-         extract(month from start_date)::int as start_month,
-         extract(year from end_date)::int as end_year,
-         extract(month from end_date)::int as end_month,
-         is_current,
-         description
-       from resume_works
-       where resume_id = $1
-       order by sort_order asc, start_date asc nulls last`,
-      [resumeRow.id]
-    ),
-  ]);
+  const { rows } = await query<Record<string, unknown>>(
+    `select r.*,
+      coalesce((select jsonb_agg(to_jsonb(c) order by c.condition_type, c.sort_order, c.id)
+        from resume_desired_conditions c where c.resume_id = r.id), '[]'::jsonb) as desired,
+      coalesce((select jsonb_agg(to_jsonb(e) - 'sort_order' - 'start_date'
+          order by e.sort_order, e.start_date nulls last, e.id)
+        from (select ${educationColumns}, sort_order, start_date
+          from resume_educations where resume_id = r.id) e), '[]'::jsonb) as educations,
+      coalesce((select jsonb_agg(to_jsonb(w) - 'sort_order' - 'start_date'
+          order by w.sort_order, w.start_date nulls last, w.id)
+        from (select ${workColumns}, sort_order, start_date
+          from resume_works where resume_id = r.id) w), '[]'::jsonb) as works
+     from resume_drafts r where ${identifierWhere(trimmedResumeId, 'r')} limit 1`, [trimmedResumeId]);
+  const resumeRow = rows[0];
+  if (!resumeRow) return null;
 
   return {
-    resume: mapDbResume({ ...resumeRow, ...desired }),
-    educations: educationsRes.rows
-      .filter((row) => typeof row.id === 'string')
-      .map((row) => ({ ...row, id: row.id as string })),
-    works: worksRes.rows
-      .filter((row) => typeof row.id === 'string')
-      .map((row) => ({ ...row, id: row.id as string })),
+    resume: mapDbResume({ ...resumeRow, ...groupDesiredConditions(resumeRow.desired as Array<{ condition_type: string; label: string }>) }),
+    educations: resumeRow.educations as ResumeBundle['educations'],
+    works: resumeRow.works as ResumeBundle['works'],
   };
 }
 
@@ -660,24 +588,12 @@ export type ResumeEducationRow = {
 export async function getResumeEducations(resumeId: string): Promise<ResumeEducationRow[]> {
   if (typeof resumeId !== 'string' || !resumeId.trim()) return [];
 
-  const resumeRow = await getResumeRowByIdentifier(resumeId.trim());
-  if (!resumeRow || typeof resumeRow.id !== 'string') return [];
-
   const { rows } = await query<ResumeEducationRow>(
-    `select
-       id,
-       school_name,
-       department,
-       degree,
-       extract(year from start_date)::int as start_year,
-       extract(month from start_date)::int as start_month,
-       extract(year from end_date)::int as end_year,
-       extract(month from end_date)::int as end_month,
-       is_current
+    `select ${educationColumns}
      from resume_educations
-     where resume_id = $1
-     order by sort_order asc, start_date asc nulls last`,
-    [resumeRow.id]
+     where resume_id = (select id from resume_drafts where ${identifierWhere(resumeId.trim())} limit 1)
+     order by sort_order asc, start_date asc nulls last, id`,
+    [resumeId.trim()]
   );
 
   return rows;
@@ -699,25 +615,12 @@ export type ResumeWorkRow = {
 export async function getResumeWorks(resumeId: string): Promise<ResumeWorkRow[]> {
   if (typeof resumeId !== 'string' || !resumeId.trim()) return [];
 
-  const resumeRow = await getResumeRowByIdentifier(resumeId.trim());
-  if (!resumeRow || typeof resumeRow.id !== 'string') return [];
-
   const { rows } = await query<ResumeWorkRow>(
-    `select
-       id,
-       company_name,
-       department,
-       position,
-       extract(year from start_date)::int as start_year,
-       extract(month from start_date)::int as start_month,
-       extract(year from end_date)::int as end_year,
-       extract(month from end_date)::int as end_month,
-       is_current,
-       description
+    `select ${workColumns}
      from resume_works
-     where resume_id = $1
-     order by sort_order asc, start_date asc nulls last`,
-    [resumeRow.id]
+     where resume_id = (select id from resume_drafts where ${identifierWhere(resumeId.trim())} limit 1)
+     order by sort_order asc, start_date asc nulls last, id`,
+    [resumeId.trim()]
   );
 
   return rows;
@@ -734,11 +637,6 @@ export async function createEducation(data: {
   end_month?: number;
   is_current?: boolean;
 }) {
-  const resumeRow = await getResumeRowByIdentifier(data.resume_id);
-  if (!resumeRow || typeof resumeRow.id !== 'string') {
-    throw new Error('Resume not found');
-  }
-
   const startDate = buildDate(data.start_year, data.start_month);
   const endDate = data.is_current ? null : buildDate(data.end_year, data.end_month);
 
@@ -746,10 +644,10 @@ export async function createEducation(data: {
     `insert into resume_educations (
       resume_id, school_name, department, degree,
       start_date, end_date, is_current
-    ) values ($1,$2,$3,$4,$5,$6,$7)
+    ) select id,$2,$3,$4,$5,$6,$7 from resume_drafts where ${identifierWhere(data.resume_id)}
     returning id`,
     [
-      resumeRow.id,
+      data.resume_id,
       data.school_name,
       data.department ?? null,
       data.degree ?? null,
@@ -759,7 +657,8 @@ export async function createEducation(data: {
     ]
   );
 
-  return rows[0]?.id;
+  if (!rows[0]) throw new Error('Resume not found');
+  return rows[0].id;
 }
 
 export async function deleteEducation(id: string) {
@@ -778,11 +677,6 @@ export async function createWork(data: {
   is_current?: boolean;
   description?: string;
 }) {
-  const resumeRow = await getResumeRowByIdentifier(data.resume_id);
-  if (!resumeRow || typeof resumeRow.id !== 'string') {
-    throw new Error('Resume not found');
-  }
-
   const startDate = buildDate(data.start_year, data.start_month);
   const endDate = data.is_current ? null : buildDate(data.end_year, data.end_month);
 
@@ -790,10 +684,10 @@ export async function createWork(data: {
     `insert into resume_works (
       resume_id, company_name, department, position,
       start_date, end_date, is_current, description
-    ) values ($1,$2,$3,$4,$5,$6,$7,$8)
+    ) select id,$2,$3,$4,$5,$6,$7,$8 from resume_drafts where ${identifierWhere(data.resume_id)}
     returning id`,
     [
-      resumeRow.id,
+      data.resume_id,
       data.company_name,
       data.department ?? null,
       data.position ?? null,
@@ -804,7 +698,8 @@ export async function createWork(data: {
     ]
   );
 
-  return rows[0]?.id;
+  if (!rows[0]) throw new Error('Resume not found');
+  return rows[0].id;
 }
 
 export async function deleteWork(id: string) {

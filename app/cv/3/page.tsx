@@ -11,6 +11,8 @@ import { useAiGeneration } from '@/lib/ai/use-ai-generation';
 import { AiErrorNotice } from '@/components/ui/AiErrorNotice';
 import { newCorrelationId } from '@/lib/observability/correlation';
 import { reportClientFailure, type AiRoute, type ClientFailure } from '@/lib/ai/client';
+import { loadResumeResource, mutateResumeResource } from '@/lib/storage/resume-resource';
+import { saveResume } from '@/lib/storage/resume-save';
 
 const PROFILE_PHOTO_MAX_LONG_EDGE = 1400;
 const PROFILE_PHOTO_TARGET_MAX_BYTES = 900 * 1024;
@@ -130,12 +132,11 @@ export default function CVStep3() {
     const resumeId = getStorageItemWithLegacyFallback(BRAND_STORAGE_KEYS.resumeId.current, BRAND_STORAGE_KEYS.resumeId.legacy);
     if (!resumeId) return;
 
-    fetch('/api/data/resume?id=' + resumeId)
-      .then(res => res.json())
+    loadResumeResource(resumeId, 'bundle')
       .then(data => {
         setFullData(data);
         const initialSummary = data.resume?.summary || '';
-        const initialTransferableSkills = data.resume?.transferable_skills || data.resume?.experience_knowledge || '';
+        const initialTransferableSkills = data.resume?.transferable_skills || '';
         setSummary(initialSummary);
         setSavedSummary(initialSummary);
         setTransferableSkills(initialTransferableSkills);
@@ -143,7 +144,8 @@ export default function CVStep3() {
         if (data.resume && typeof data.resume.profilePhotoUrl === 'string') {
           setProfilePhotoUrl(data.resume.profilePhotoUrl || null);
         }
-      });
+      }).catch(() => setAiInputError({ code: 'RESUME_LOAD_FAILED', correlationId: newCorrelationId(), retryable: false,
+        message: '保存済みのデータを読み込めませんでした。接続を確認して画面を開き直してください。' }));
   }, []);
 
   const hasUnsavedChanges =
@@ -174,7 +176,8 @@ export default function CVStep3() {
       formData.append('file', uploadFile);
       formData.append('resumeId', resumeId);
 
-      const res = await fetch('/api/data/resume/profile-photo', {
+      const cacheId = fullData?.resume?.resume_id || resumeId;
+      const res = await mutateResumeResource(cacheId, '/api/data/resume/profile-photo', {
         method: 'POST',
         body: formData,
       });
@@ -283,12 +286,7 @@ export default function CVStep3() {
         transferable_skills: transferableSkills,
       };
 
-      const res = await fetch('/api/data/resume', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error('保存失敗');
+      await saveResume('PATCH', payload);
 
       setFullData((prev: any) =>
         prev ? { ...prev, resume: { ...prev.resume, summary, transferable_skills: transferableSkills } } : prev

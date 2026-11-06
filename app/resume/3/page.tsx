@@ -10,6 +10,9 @@ import { PageIntro } from '@/components/layout/PageIntro';
 import { FormSection } from '@/components/layout/FormSection';
 import { stagger } from '@/lib/ui/stagger';
 import { BRAND_STORAGE_KEYS, getStorageItemWithLegacyFallback } from '@/lib/storage/branding';
+import type { ResumeEducationRow } from '@/lib/db/resume';
+import { loadResumeResource, mutateResumeResource } from '@/lib/storage/resume-resource';
+import { ensureResumeId } from '@/lib/storage/resume-save';
 
 // 学歴データの型
 type Education = {
@@ -25,8 +28,9 @@ type Education = {
 
 export default function ResumeStep3() {
   const router = useStepRouter();
-  const [educations, setEducations] = useState<Education[]>([]);
+  const [educations, setEducations] = useState<Array<Education | ResumeEducationRow>>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   // フォーム管理 (新規追加用)
   const { register, handleSubmit, reset, formState: { errors } } = useForm<Education>({
@@ -41,15 +45,16 @@ export default function ResumeStep3() {
       return;
     }
     
-    fetch('/api/data/education?resumeId=' + resumeId)
-      .then(res => res.json())
+    let active = true;
+    loadResumeResource(resumeId, 'education')
       .then(data => {
-        if (data.educations) {
+        if (active && data.educations) {
           setEducations(data.educations);
         }
       })
-      .catch(err => console.error(err))
-      .finally(() => setLoading(false));
+      .catch(() => { if (active) setLoadError(true); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, [router]);
 
   // 学歴追加処理
@@ -59,7 +64,7 @@ export default function ResumeStep3() {
 
     try {
       const payload = { ...data, resume_id: resumeId };
-      const res = await fetch('/api/data/education', {
+      const res = await mutateResumeResource(resumeId, '/api/data/education', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -70,7 +75,7 @@ export default function ResumeStep3() {
       // リストを再取得するか、簡易的にstateに追加
       // ここでは簡易リロード
       const saved = await res.json();
-      setEducations([...educations, { ...data, id: saved.id }]);
+      setEducations(previous => [...previous, { ...data, id: saved.id }]);
       reset(); // フォームクリア
 
     } catch (error) {
@@ -82,8 +87,9 @@ export default function ResumeStep3() {
   const onDelete = async (id: string) => {
     if(!confirm('削除しますか？')) return;
     try {
-      await fetch('/api/data/education?id=' + id, { method: 'DELETE' });
-      setEducations(educations.filter(e => e.id !== id));
+      const resumeId = ensureResumeId();
+      await mutateResumeResource(resumeId, '/api/data/education?id=' + encodeURIComponent(id), { method: 'DELETE' });
+      setEducations(previous => previous.filter(e => e.id !== id));
     } catch (error) {
       alert('削除失敗');
     }
@@ -100,7 +106,8 @@ export default function ResumeStep3() {
       <FormSection index={0} title="登録済みの学歴">
       <div className="space-y-3">
         {loading && <p className="text-sm text-gray-400">学歴を読み込み中...</p>}
-        {!loading && educations.length === 0 && <p className="text-gray-500">学歴はまだ登録されていません。</p>}
+        {loadError && <p role="alert" className="text-sm text-red-600">学歴を読み込めませんでした。前の画面で保存状態と接続を確認し、もう一度開いてください。</p>}
+        {!loading && !loadError && educations.length === 0 && <p className="text-gray-500">学歴はまだ登録されていません。</p>}
         
         {educations.map((edu) => (
           <div key={edu.id} className="p-4 border rounded bg-gray-50 space-y-3">

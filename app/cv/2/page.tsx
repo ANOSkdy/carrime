@@ -11,6 +11,8 @@ import { useAiGeneration } from '@/lib/ai/use-ai-generation';
 import { AiErrorNotice } from '@/components/ui/AiErrorNotice';
 import { newCorrelationId } from '@/lib/observability/correlation';
 import { reportClientFailure, type ClientFailure } from '@/lib/ai/client';
+import { loadResumeResource } from '@/lib/storage/resume-resource';
+import { saveResume } from '@/lib/storage/resume-save';
 
 export default function CVStep2() {
   const router = useStepRouter();
@@ -21,26 +23,28 @@ export default function CVStep2() {
   const edited = useRef(false);
 
   useEffect(() => {
-    // localStorageから最新の入力を取得
-    const loaded = loadAiInputs();
-    if (loaded.status === 'ready') {
-      setInputs(loaded.inputs);
-    } else {
-      const failure = { code: 'CLIENT_STORAGE_ERROR', correlationId: newCorrelationId(), retryable: false,
-        message: loaded.status === 'missing'
-          ? 'このURLではヒアリング入力が見つかりません。入力は別のドメインやブラウザから自動では引き継がれません。前の画面で確認してください。'
-          : '保存済みの入力を読み取れませんでした。元のデータは削除していません。前の画面で入力内容とブラウザの保存設定を確認してください。' };
-      setPageError(failure);
-      reportClientFailure('/api/ai/selfpr', failure);
-    }
+    const controller = new AbortController();
+    void Promise.resolve().then(() => {
+      if (controller.signal.aborted) return;
+      // Hydrate browser storage after mounting without blocking the initial render.
+      const loaded = loadAiInputs();
+      if (loaded.status === 'ready') {
+        setInputs(loaded.inputs);
+      } else {
+        const failure = { code: 'CLIENT_STORAGE_ERROR', correlationId: newCorrelationId(), retryable: false,
+          message: loaded.status === 'missing'
+            ? 'このURLではヒアリング入力が見つかりません。入力は別のドメインやブラウザから自動では引き継がれません。前の画面で確認してください。'
+            : '保存済みの入力を読み取れませんでした。元のデータは削除していません。前の画面で入力内容とブラウザの保存設定を確認してください。' };
+        setPageError(failure);
+        reportClientFailure('/api/ai/selfpr', failure);
+      }
+    });
 
     // 既存の自己PRがあればロード
-    const controller = new AbortController();
     try {
       const resumeId = getStorageItemWithLegacyFallback(BRAND_STORAGE_KEYS.resumeId.current, BRAND_STORAGE_KEYS.resumeId.legacy);
       if (resumeId) {
-        fetch('/api/data/resume?id=' + encodeURIComponent(resumeId), { signal: controller.signal })
-          .then(res => { if (!res.ok) throw new Error('LOAD_FAILED'); return res.json(); })
+        loadResumeResource(resumeId, 'selfpr')
           .then(data => {
             if (!controller.signal.aborted && !edited.current && typeof data.resume?.self_pr === 'string') setGeneratedPR(data.resume.self_pr);
           })
@@ -53,7 +57,7 @@ export default function CVStep2() {
       // The input loader above already reports disabled/unavailable storage.
     }
     return () => controller.abort();
-  }, [router]);
+  }, []);
 
   const generateAI = async () => {
     if (!inputs) {
@@ -81,13 +85,7 @@ export default function CVStep2() {
         self_pr: generatedPR
       };
 
-      const res = await fetch('/api/data/resume', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) throw new Error('保存失敗');
+      await saveResume('PATCH', payload);
       router.push('/cv/3');
 
     } catch {
