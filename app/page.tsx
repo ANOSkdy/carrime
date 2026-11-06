@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { AppShell } from '@/components/layout/AppShell';
 import { stagger } from '@/lib/ui/stagger';
-import { BrandLogo } from '@/components/ui/BrandLogo';
 
 export default function Home() {
   const router = useRouter();
@@ -29,13 +28,11 @@ export default function Home() {
       <section className="lx space-y-10">
         <div className="lx-reveal space-y-4 pt-6" style={stagger(0)}>
           <p className="lx-eyebrow font-mono text-gray-400">AI Resume Studio</p>
-          <h1>
-            <BrandLogo className="h-auto w-48 max-w-full" />
+          <h1 className="text-2xl font-bold leading-tight text-gray-900">
+            AIでつくる、あなたのキャリア。
           </h1>
           <div aria-hidden="true" className="lx-rule w-16 text-gray-900" style={stagger(1)} />
           <p className="text-[13px] leading-loose tracking-[0.06em] text-gray-600">
-            AIでつくる、あなたのキャリア。
-            <br />
             いつでもどこでもモバイル端末から履歴書・職務経歴書を作成できます。
           </p>
         </div>
