@@ -1,16 +1,15 @@
 import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
-import { ZodError } from 'zod';
 import { getResumeBundle, getResumeProfile, getResumeSelfPr, patchResumeDraft, saveResumeDraft } from '@/lib/db/resume';
 import { measureDatabaseRequests } from '@/lib/db/postgres';
 import { writeApiLog } from '@/lib/observability/api-log';
 import { ResumePatchSchema, ResumeSchema } from '@/lib/validation/schemas';
 
 export const runtime = 'nodejs';
-class InvalidJsonInput extends Error {}
+class InvalidInput extends Error {}
 async function readBody(request: Request) {
   try { return await request.json(); }
-  catch { throw new InvalidJsonInput(); }
+  catch { throw new InvalidInput(); }
 }
 
 async function handle(request: Request, run: () => Promise<NextResponse>) {
@@ -20,7 +19,7 @@ async function handle(request: Request, run: () => Promise<NextResponse>) {
   const { value: response, requests: dbRequests } = await measureDatabaseRequests(async () => {
     try { return await run(); }
     catch (error) {
-      const invalid = error instanceof ZodError || error instanceof InvalidJsonInput;
+      const invalid = error instanceof InvalidInput;
       code = invalid ? 'INVALID_INPUT' : 'DATA_REQUEST_FAILED';
       return NextResponse.json({ error: invalid ? '入力内容を確認してください。' : 'データの取得・保存に失敗しました。時間をおいて再度お試しください。', correlationId }, { status: invalid ? 400 : 500 });
     }
@@ -48,14 +47,18 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   return handle(request, async () => {
-    const saved = await saveResumeDraft(ResumeSchema.parse(await readBody(request)));
+    const parsed = ResumeSchema.safeParse(await readBody(request));
+    if (!parsed.success) throw new InvalidInput();
+    const saved = await saveResumeDraft(parsed.data);
     return NextResponse.json({ success: true, record: saved });
   });
 }
 
 export async function PATCH(request: Request) {
   return handle(request, async () => {
-    const saved = await patchResumeDraft(ResumePatchSchema.parse(await readBody(request)));
+    const parsed = ResumePatchSchema.safeParse(await readBody(request));
+    if (!parsed.success) throw new InvalidInput();
+    const saved = await patchResumeDraft(parsed.data);
     return NextResponse.json({ success: true, record: saved });
   });
 }
