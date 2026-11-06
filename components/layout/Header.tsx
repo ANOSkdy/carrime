@@ -7,7 +7,7 @@ export const Header = () => {
     <header className="border-b bg-white">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Link href="/" className="shrink-0">
-          <BrandLogo className="h-12 w-auto" />
+          <BrandLogo />
         </Link>
         <nav className="flex gap-4 text-sm text-gray-600">
           <Link href="/" className="hover:text-blue-600">ホーム</Link>
