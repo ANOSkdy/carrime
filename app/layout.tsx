@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Carrime | モバイル履歴書ウィザード",
-  description: "AIでつくるモバイル最適化された履歴書/職務経歴書ウィザード",
+  title: "Carrime | AI履歴書",
+  description: "AIでつくる、あなたのキャリア。スマホで履歴書・職務経歴書を作成できるCarrime。",
 };
 
 export const viewport: Viewport = {
