@@ -4,19 +4,20 @@ import { randomUUID } from 'node:crypto';
 import { memoryAdapter } from 'better-auth/adapters/memory';
 import { createCrmAuth } from '../lib/crm/auth-config.ts';
 import { getCrmAccess } from '../lib/crm/access.ts';
+import { resolveCrmAuthOrigins, CANONICAL_ORIGIN } from '../lib/crm/auth-origins.ts';
 
 const baseURL = 'https://crm.example.test';
 const initialPassword = 'Only-for-memory-tests-42';
 const newPassword = 'Changed-in-memory-tests-84';
 
-async function fixture({ role = 'admin', rateLimitEnabled = false } = {}) {
+async function fixture({ role = 'admin', rateLimitEnabled = false, baseURL: fixtureBase = baseURL, trustedOrigins = [fixtureBase] } = {}) {
   const db = {
     crm_auth_user: [], crm_auth_account: [], crm_auth_session: [],
     crm_auth_verification: [], crm_auth_rate_limit: [],
   };
   const auth = createCrmAuth({
-    database: memoryAdapter(db), secret: randomUUID() + randomUUID(), baseURL,
-    trustedOrigins: [baseURL], secureCookies: true, rateLimitEnabled,
+    database: memoryAdapter(db), secret: randomUUID() + randomUUID(), baseURL: fixtureBase,
+    trustedOrigins, secureCookies: true, rateLimitEnabled,
   });
   const ctx = await auth.$context;
   const user = await ctx.internalAdapter.createUser({
@@ -27,7 +28,7 @@ async function fixture({ role = 'admin', rateLimitEnabled = false } = {}) {
     userId: user.id, accountId: user.id, providerId: 'credential',
     password: await ctx.password.hash(initialPassword),
   });
-  const call = (path, body, cookie, origin = baseURL) => auth.handler(new Request(`${baseURL}/api/crm-auth${path}`, {
+  const call = (path, body, cookie, origin = fixtureBase) => auth.handler(new Request(`${fixtureBase}/api/crm-auth${path}`, {
     method: body ? 'POST' : 'GET',
     headers: { 'content-type': 'application/json', origin, 'x-forwarded-for': '192.0.2.7', ...(cookie ? { cookie } : {}) },
     body: body ? JSON.stringify(body) : undefined,
@@ -68,6 +69,7 @@ test('CRM password change rotates sessions, clears the first-login requirement a
   assert.match(attributes, /httponly/i);
   assert.match(attributes, /secure/i);
   assert.match(attributes, /samesite=lax/i);
+  assert.doesNotMatch(attributes, /;\s*domain=/i);
   const before = await (await call('/get-session', null, cookie)).json();
   assert.equal(getCrmAccess(before), 'password-change');
 
@@ -124,4 +126,45 @@ test('CRM users cannot grant themselves the admin role', async () => {
   const session = await (await call('/get-session', null, cookie)).json();
   assert.equal(getCrmAccess(session), 'forbidden');
   assert.equal(session.user.role, 'user');
+});
+
+test('canonical domain supports sign-in/session/sign-out while unapproved origins remain rejected', async () => {
+  const config = resolveCrmAuthOrigins({ NODE_ENV: 'production', VERCEL_ENV: 'production', CRM_AUTH_URL: `${CANONICAL_ORIGIN}/` });
+  assert.deepEqual(config.trustedOrigins, [CANONICAL_ORIGIN]);
+  const { call, user } = await fixture(config);
+  const login = await call('/sign-in/email', { email: user.email, password: initialPassword });
+  assert.equal(login.status, 200);
+  const cookie = cookieFrom(login);
+  assert.ok(cookie);
+  const attributes = login.headers.getSetCookie().find((value) => value.startsWith('__Secure-carrime-crm.session_token='));
+  assert.match(attributes, /HttpOnly/i);
+  assert.match(attributes, /Secure/i);
+  assert.match(attributes, /SameSite=Lax/i);
+  assert.doesNotMatch(attributes, /;\s*Domain=/i);
+  assert.equal(getCrmAccess(await (await call('/get-session', null, cookie)).json()), 'password-change');
+  for (const origin of ['https://carrime.app', 'https://carrime.vercel.app', 'https://untrusted.example.test']) {
+    assert.equal((await call('/sign-in/email', { email: user.email, password: initialPassword }, undefined, origin)).status, 403);
+  }
+  assert.equal((await call('/sign-out', {}, cookie)).status, 200);
+  assert.equal(await (await call('/get-session', null, cookie)).json(), null);
+});
+
+test('preview origin configuration never inherits production/legacy domains or a wildcard', async () => {
+  const config = resolveCrmAuthOrigins({ NODE_ENV: 'production', VERCEL_ENV: 'preview', CRM_AUTH_URL: CANONICAL_ORIGIN,
+    VERCEL_URL: 'carrime-deployment.example.test', VERCEL_BRANCH_URL: 'carrime-branch.example.test' });
+  assert.deepEqual(config.trustedOrigins, ['https://carrime-deployment.example.test', 'https://carrime-branch.example.test']);
+  const { call, user } = await fixture(config);
+  const payload = { email: user.email, password: initialPassword };
+  assert.equal((await call('/sign-in/email', payload)).status, 200);
+  assert.equal((await call('/sign-in/email', payload, undefined, 'https://carrime-branch.example.test')).status, 200);
+  assert.equal((await call('/sign-in/email', payload, undefined, CANONICAL_ORIGIN)).status, 403);
+  assert.throws(() => resolveCrmAuthOrigins({ VERCEL_ENV: 'preview' }));
+  assert.throws(() => resolveCrmAuthOrigins({ VERCEL_ENV: 'production', CRM_AUTH_URL: 'https://carrime.vercel.app' }));
+});
+
+test('an old auth base URL reproduces the new-domain origin failure independently of AI routes', async () => {
+  const { call, user } = await fixture({ baseURL: 'https://carrime.vercel.app' });
+  const res = await call('/sign-in/email', { email: user.email, password: initialPassword }, undefined, CANONICAL_ORIGIN);
+  assert.equal(res.status, 403);
+  assert.equal((await res.json()).code, 'INVALID_ORIGIN');
 });

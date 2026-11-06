@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/Button';
 import { crmAuthClient } from '@/lib/crm/auth-client';
+import { authErrorMessage } from '@/lib/crm/auth-error';
 
 export function PasswordForm() {
   const [pending, setPending] = useState(false);
@@ -21,7 +22,7 @@ export function PasswordForm() {
     try {
       const result = await crmAuthClient.changePassword({ currentPassword, newPassword, revokeOtherSessions: true });
       if (result.error) {
-        setError(result.error.status === 429 ? '試行回数が多すぎます。しばらく待ってからお試しください。' : '変更できませんでした。現在のパスワードと入力内容を確認してください。');
+        setError(authErrorMessage(result.error, '変更できませんでした。現在のパスワードと入力内容を確認してください。'));
         setPending(false);
         return;
       }
@@ -45,7 +46,7 @@ export function PasswordForm() {
           <input id={`crm-${field.name}`} name={field.name} type="password" autoComplete={field.autoComplete} required minLength={field.minLength} maxLength={128} className="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2" />
         </div>
       ))}
-      {error ? <p role="alert" className="text-sm text-red-600">{error}</p> : null}
+      {error ? <p role="alert" className="break-words text-sm text-red-600">{error}</p> : null}
       <Button type="submit" isLoading={pending}>パスワードを変更</Button>
     </form>
   );

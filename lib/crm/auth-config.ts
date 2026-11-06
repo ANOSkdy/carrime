@@ -18,6 +18,8 @@ export function createCrmAuth(options: CrmAuthOptions) {
     secret: options.secret,
     database: options.database,
     trustedOrigins: options.trustedOrigins,
+    // Route-level structured logs record status/code without raw auth errors.
+    logger: { disabled: true },
     emailAndPassword: {
       enabled: true,
       disableSignUp: true,
@@ -42,6 +44,8 @@ export function createCrmAuth(options: CrmAuthOptions) {
     advanced: {
       cookiePrefix: 'carrime-crm',
       useSecureCookies: options.secureCookies,
+      crossSubDomainCookies: { enabled: false },
+      defaultCookieAttributes: { httpOnly: true, sameSite: 'lax', secure: options.secureCookies, path: '/' },
     },
     rateLimit: {
       enabled: options.rateLimitEnabled ?? true,

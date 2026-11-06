@@ -4,10 +4,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useStepRouter } from '@/lib/navigation/use-step-router';
 import { Button } from '@/components/ui/Button';
 import { PageIntro } from '@/components/layout/PageIntro';
-import { stagger } from '@/lib/ui/stagger';
 import { PDFTrigger } from '@/components/pdf/PDFTrigger';
 import { JobHistoryTrigger } from '@/components/pdf/JobHistoryTrigger';
 import { BRAND_STORAGE_KEYS, getStorageItemWithLegacyFallback } from '@/lib/storage/branding';
+import { useAiGeneration } from '@/lib/ai/use-ai-generation';
+import { AiErrorNotice } from '@/components/ui/AiErrorNotice';
+import { newCorrelationId } from '@/lib/observability/correlation';
+import { reportClientFailure, type AiRoute, type ClientFailure } from '@/lib/ai/client';
 
 const PROFILE_PHOTO_MAX_LONG_EDGE = 1400;
 const PROFILE_PHOTO_TARGET_MAX_BYTES = 900 * 1024;
@@ -111,8 +114,11 @@ export default function CVStep3() {
   const [savedTransferableSkills, setSavedTransferableSkills] = useState('');
   const [isSummarySavedForPdf, setIsSummarySavedForPdf] = useState(false);
   const [fullData, setFullData] = useState<any>(null);
-  const [loadingAI, setLoadingAI] = useState(false);
-  const [loadingExperienceAI, setLoadingExperienceAI] = useState(false);
+  const summaryAI = useAiGeneration('/api/ai/summary');
+  const experienceAI = useAiGeneration('/api/ai/experience');
+  const loadingAI = summaryAI.loading;
+  const loadingExperienceAI = experienceAI.loading;
+  const [aiInputError, setAiInputError] = useState<ClientFailure | null>(null);
   const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<
@@ -228,72 +234,42 @@ export default function CVStep3() {
     }).join('\n');
   };
 
+  const showInputError = (route: AiRoute, message: string) => {
+    const failure = { code: 'INVALID_INPUT', correlationId: newCorrelationId(), retryable: false, message };
+    setAiInputError(failure);
+    reportClientFailure(route, failure);
+  };
+
   const generateSummary = async () => {
+    setAiInputError(null);
     if (!fullData || !fullData.works || fullData.works.length === 0) {
-      alert("職歴データが0件です。Step 4に戻ってデータを追加してください。");
+      showInputError('/api/ai/summary', '職歴データが0件です。職歴の画面でデータを追加してください。');
       return;
     }
-    setLoadingAI(true);
-
-    try {
-      const careerText = buildCareerText();
-
-      if (careerText.replace(/\s/g, '').length < 10) {
-        alert("職歴データのテキスト化に失敗しました。データの中身が空のようです。");
-        setLoadingAI(false);
-        return;
-      }
-
-      const res = await fetch('/api/ai/summary', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ career_text: careerText })
-      });
-      
-      const json = await res.json();
-      if (json.result) {
-        setSummary(json.result);
-      } else {
-        alert('AI生成エラー: ' + (json.error || '不明なエラー'));
-      }
-    } catch (error) {
-      alert('通信エラーが発生しました');
-    } finally {
-      setLoadingAI(false);
+    const careerText = buildCareerText();
+    if (careerText.replace(/\s/g, '').length < 10) {
+      showInputError('/api/ai/summary', '職歴の内容が不足しています。職歴の入力を確認してください。');
+      return;
     }
+    const result = await summaryAI.generate({ career_text: careerText });
+    if (result !== null) setSummary(result);
   };
 
   const generateExperienceKnowledge = async () => {
+    setAiInputError(null);
     if (!fullData || !fullData.works || fullData.works.length === 0) {
-      alert("職歴データが0件です。Step 4に戻ってデータを追加してください。");
+      showInputError('/api/ai/experience', '職歴データが0件です。職歴の画面でデータを追加してください。');
       return;
     }
 
     const careerText = buildCareerText();
     if (careerText.replace(/\s/g, '').length < 10) {
-      alert("職務内容が空のため生成できません。職歴を確認してください。");
+      showInputError('/api/ai/experience', '職務内容が空のため生成できません。職歴を確認してください。');
       return;
     }
 
-    setLoadingExperienceAI(true);
-    try {
-      const res = await fetch('/api/ai/experience', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ experience_text: careerText }),
-      });
-
-      const json = await res.json();
-      if (json.result) {
-        setTransferableSkills(json.result);
-      } else {
-        alert('AI生成エラー: ' + (json.error || '不明なエラー'));
-      }
-    } catch (error) {
-      alert('通信エラーが発生しました');
-    } finally {
-      setLoadingExperienceAI(false);
-    }
+    const result = await experienceAI.generate({ experience_text: careerText });
+    if (result !== null) setTransferableSkills(result);
   };
 
   const onSaveSummary = async () => {
@@ -322,7 +298,7 @@ export default function CVStep3() {
       setIsSummarySavedForPdf(true);
       alert('保存しました！下のボタンからPDFをダウンロードできます。');
 
-    } catch (error) {
+    } catch {
       alert('保存失敗');
     }
   };
@@ -398,7 +374,9 @@ export default function CVStep3() {
         <Button onClick={generateSummary} isLoading={loadingAI} size="sm" className="bg-green-600 hover:bg-green-700">
           🤖 AIで職務要約を書く
         </Button>
+        <AiErrorNotice error={summaryAI.error} onRetry={generateSummary} busy={loadingAI} />
       </div>
+      <AiErrorNotice error={aiInputError} />
 
       <div className="mb-8 space-y-6">
         <label className="block text-sm font-bold text-gray-700 mb-2">職務要約 (編集可能)</label>
@@ -417,6 +395,7 @@ export default function CVStep3() {
               💡 AIで生成する
             </Button>
           </div>
+          <AiErrorNotice error={experienceAI.error} onRetry={generateExperienceKnowledge} busy={loadingExperienceAI} />
           <textarea
             className="w-full p-3 border rounded-md h-32 mt-3"
             value={transferableSkills}
@@ -430,7 +409,7 @@ export default function CVStep3() {
             size="sm"
             variant="outline"
             onClick={onSaveSummary}
-            disabled={!summary && !transferableSkills}
+            disabled={(!summary && !transferableSkills) || loadingAI || loadingExperienceAI}
             className={
               requiresSaveBeforePdf
                 ? 'border-amber-400 bg-amber-50 text-amber-900 shadow-md ring-2 ring-amber-300 animate-pulse hover:bg-amber-100'
