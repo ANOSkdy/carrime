@@ -23,12 +23,13 @@ export async function loadResumeResource<K extends keyof Resources>(resumeId: st
   });
 }
 
-export async function mutateResumeResource(resumeId: string, url: string, options: RequestInit) {
+export async function mutateResumeResource(resumeId: string, url: string, options: RequestInit,
+  handling: { allowErrorResponse?: boolean } = {}) {
   await waitForResumeSaves(resumeId);
   invalidateResumeCache(resumeId);
   try {
     const response = await fetch(url, options);
-    if (!response.ok) throw new Error('RESUME_SAVE_FAILED');
+    if (!response.ok && !handling.allowErrorResponse) throw new Error('RESUME_SAVE_FAILED');
     return response;
   } finally { invalidateResumeCache(resumeId); }
 }

@@ -180,7 +180,7 @@ export default function CVStep3() {
       const res = await mutateResumeResource(cacheId, '/api/data/resume/profile-photo', {
         method: 'POST',
         body: formData,
-      });
+      }, { allowErrorResponse: true });
 
       const json = await res.json();
 

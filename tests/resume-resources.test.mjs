@@ -134,3 +134,13 @@ test('successful saves and failed child mutations both invalidate cached views',
   await assert.rejects(mutateResumeResource('invalidate', '/api/data/work?id=fixture', { method: 'DELETE' }));
   assert.equal((await loadResumeResource('invalidate', 'selfpr')).resume.self_pr, '3');
 });
+
+test('photo uploads preserve caller-owned HTTP error handling while invalidating cache', async t => {
+  browser(t);
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ error: 'FILE_TOO_LARGE' }, { status: 413 }));
+  await cachedResumeResource('photo-error', 'bundle', async () => 'old-photo');
+  const response = await mutateResumeResource('photo-error', '/api/data/resume/profile-photo', { method: 'POST' }, { allowErrorResponse: true });
+  assert.equal(response.status, 413);
+  assert.equal((await response.json()).error, 'FILE_TOO_LARGE');
+  assert.equal(await cachedResumeResource('photo-error', 'bundle', async () => 'refreshed-photo'), 'refreshed-photo');
+});
