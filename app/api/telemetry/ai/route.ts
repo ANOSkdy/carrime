@@ -29,7 +29,8 @@ export async function POST(request: Request) {
     }
     writeApiLog({ event: 'client.ai_failed', correlationId, route: route as string, method: 'POST',
       status: typeof status === 'number' ? status : 0, durationMs: 0, code,
-      stage: code === 'CLIENT_STORAGE_ERROR' ? 'storage' : code === 'CLIENT_NETWORK_ERROR' || code === 'CLIENT_TIMEOUT' ? 'network' : 'response' });
+      stage: code === 'CLIENT_STORAGE_ERROR' ? 'storage' : code === 'CLIENT_NETWORK_ERROR' || code === 'CLIENT_TIMEOUT' ? 'network'
+        : code === 'INVALID_INPUT' && status === undefined ? 'validation' : 'response' });
     return new Response(null, { status: 204 });
   } catch {
     return new Response(null, { status: 400 });

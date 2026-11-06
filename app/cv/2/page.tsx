@@ -113,7 +113,7 @@ export default function CVStep2() {
           ✨ AIで自己PRを生成する
         </Button>
       </div>
-      <AiErrorNotice error={pageError} preservesInput={false} />
+      <AiErrorNotice error={pageError} preservesInput={false} showCorrelationId={pageError?.code === 'CLIENT_STORAGE_ERROR'} />
       <AiErrorNotice error={aiError} onRetry={generateAI} busy={loading} />
 
       <div className="mb-6">

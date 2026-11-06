@@ -63,6 +63,21 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
   try {
     const { context, page, state } = await setup();
+    if (process.env.CARRIME_LIVE_AI === '1') {
+      const id = '12345678-1234-4123-8123-123456789abc';
+      await page.route('**/api/crm-auth/sign-in/email', (route) => route.fulfill({ status: 403,
+        json: { code: 'INVALID_ORIGIN', message: 'PRIVATE-AUTH-MESSAGE', correlationId: id } }));
+      await page.goto(`${base.origin}/crm/login`);
+      await page.getByLabel('メールアドレス').fill('synthetic@example.test');
+      await page.getByLabel('パスワード', { exact: true }).fill('Synthetic-password-97531');
+      await page.getByRole('button', { name: 'ログイン', exact: true }).click();
+      const notice = page.getByRole('alert').filter({ hasText: id });
+      await notice.waitFor();
+      assert.match(await notice.innerText(), /URL/);
+      assert.ok(!(await notice.innerText()).includes('PRIVATE-AUTH-MESSAGE'));
+      assert.equal(await page.getByLabel('パスワード', { exact: true }).inputValue(), 'Synthetic-password-97531');
+      record('CRM origin failure: safe message/support ID, credentials retained');
+    }
     await page.goto(`${base.origin}/cv/1`);
     await page.getByRole('button', { name: '自己PRの生成へ進む' }).click();
     await page.waitForURL('**/cv/2');

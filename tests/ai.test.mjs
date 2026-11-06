@@ -128,6 +128,29 @@ test('client network failure can be retried explicitly without mutating the supp
   assert.equal(payload.experience, privateMarker);
 });
 
+test('client timeout and interrupted response body remain network failures rather than JSON failures', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  t.mock.method(globalThis, 'fetch', async (_, options) => new Promise((resolve, reject) => {
+    options.signal.addEventListener('abort', () => reject(new DOMException('Synthetic timeout', 'AbortError')));
+  }));
+  const pending = requestAi(route, {});
+  const checked = assert.rejects(pending, { code: 'CLIENT_TIMEOUT', retryable: true });
+  t.mock.timers.tick(55_001);
+  await checked;
+  t.mock.method(globalThis, 'fetch', async () => new Response(new ReadableStream({
+    start(controller) { controller.error(new TypeError(privateMarker)); },
+  })));
+  await assert.rejects(requestAi(route, {}), { code: 'CLIENT_NETWORK_ERROR', retryable: true });
+});
+
+test('untrusted incoming correlation text is replaced without appearing in logs', async (t) => {
+  const logs = captureLogs(t);
+  const res = await handleAiRequest(request({ experience: 'test' }, privateMarker), 'selfpr', async () => 'synthetic');
+  const body = await res.json();
+  assert.ok(isCorrelationId(body.correlationId));
+  assert.ok(!JSON.stringify(logs).includes(privateMarker));
+});
+
 test('telemetry validates origin, bounded schema and IDs; stores client and server events separately', async (t) => {
   const logs = captureLogs(t);
   const id = newCorrelationId();

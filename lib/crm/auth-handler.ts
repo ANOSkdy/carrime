@@ -13,12 +13,20 @@ export async function handleCrmAuthRequest(request: Request, handle: () => Promi
   let code = 'OK';
   try {
     response = await handle();
-    if (!response.ok) {
+    if (response.status >= 400) {
       code = 'AUTH_REJECTED';
+      let responseCode = code;
       try {
         const body = await response.clone().json();
+        // Better Auth callers may depend on codes beyond the logged subset.
+        if (typeof body.code === 'string' && /^[A-Z_]{1,80}$/.test(body.code)) responseCode = body.code;
         if (loggedCodes.has(body.code)) code = body.code;
       } catch { /* Never log response text. */ }
+      if (response.status >= 500) { code = 'AUTH_INTERNAL_ERROR'; responseCode = code; }
+      const message = response.status >= 500 ? '認証処理でエラーが発生しました。管理者へお問い合わせください。'
+        : responseCode === 'INVALID_ORIGIN' ? 'アクセス先のURLと認証設定が一致していません。管理者へお問い合わせください。'
+          : response.status === 429 ? '試行回数が多すぎます。時間をおいて再試行してください。' : '認証に失敗しました。入力内容を確認してください。';
+      response = Response.json({ code: responseCode, message, correlationId }, { status: response.status, headers: response.headers });
     }
   } catch {
     code = 'AUTH_INTERNAL_ERROR';

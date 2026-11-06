@@ -1,0 +1,84 @@
+{
+  "dateJst": "2026-11-06",
+  "repository": "ANOSkdy/carrime",
+  "branch": "codex/fix-domain-ai-errors",
+  "pullRequest": "https://github.com/ANOSkdy/carrime/pull/22",
+  "releaseState": "draft_pending_user_approval",
+  "productionMutations": {
+    "merged": false,
+    "deployed": false,
+    "environmentVariablesChanged": false,
+    "databaseSchemaChanged": false,
+    "resumeRecordsModified": false,
+    "geminiModelOrBillingChanged": false
+  },
+  "confirmed": [
+    "CV2 has an unstable useStepRouter object in effect dependencies. A browser reproduction against the original main made 1567 intercepted resume GETs and logged 30 maximum-update-depth errors in 5 seconds.",
+    "After memoizing the router, the same initialization makes 2 GETs in development Strict Mode and 1 GET in the built Preview, with no update-depth errors.",
+    "Current Production CRM_AUTH_URL is https://www.carrime.app. APP_BASE_URL still points to https://carrime.vercel.app/.",
+    "Vercel redirects carrime.app to www.carrime.app using 308, preserving /cv/1. The old carrime.vercel.app URL currently redirects to the canonical domain using 307.",
+    "Current Production sign-in accepts the canonical origin (401 INVALID_EMAIL_OR_PASSWORD for a synthetic nonexistent account), and rejects an untrusted origin (403 INVALID_ORIGIN). This does not prove successful login with a real admin account.",
+    "Production selfpr/summary/experience API probes with synthetic data returned HTTP 200. Preview browser generation returned 443 characters with upstream HTTP 200 in 11743 ms.",
+    "localStorage and host-only cookies do not migrate between the old origin and the canonical origin. Legacy storage-key fallback works only within the same origin. No storage is deleted or automatically exported.",
+    "Runtime request logs contain paired server and client events with the same correlation ID, a separate client-only network event and an independent auth-origin rejection event. Logs contain only allowlisted technical fields."
+  ],
+  "notProven": [
+    "The exact failing request reported during 17:00-17:59 JST cannot be identified from the available historical logs. Lack of matching logs is not proof that no failure occurred.",
+    "The initialization loop is a confirmed independent defect. A causal link between that defect and the exact past catch alert has not been proven.",
+    "The historical INVALID_ORIGIN message proves rejection of that origin at that time. An old-base-URL configuration reproduces it in a memory-adapter integration test, but the exact historical deployment/environment snapshot has not been recovered.",
+    "A causal link between Better Auth rejection and the AI request failure has not been established. The AI routes do not call Better Auth."
+  ],
+  "changes": {
+    "navigation": "Memoize useStepRouter to stop repeated data loading on CV2 and on education/work pages.",
+    "authentication": "Resolve exact production/preview origins separately. Production is canonical-only. Preview trusts only its exact deployment and branch alias; APP_BASE_URL and global production hostnames no longer grant Preview origin access. Cookies remain host-only, HttpOnly, Secure on HTTPS, SameSite=Lax. Auth failures have safe messages and correlation IDs; raw auth SDK logs are replaced by structured route logs.",
+    "ai": "Share request validation, bounded JSON reading, consistent code/message/correlationId errors, safe provider classification, 40-second provider and 55-second client deadlines, synchronous duplicate-click guards and explicit user retry. Keep the existing success result and string error fields. No automatic provider POST retry, model migration or billing change.",
+    "frontend": "Use inline Japanese error notices, keep previous text on failure, preserve interview inputs, report storage failures without clearing localStorage, guard malformed stored JSON, and avoid a late initial GET overwriting edits.",
+    "observability": "Remove prompt/experience/strengths/keywords logs and raw exception output from all three AI routes. Record timestamp, correlationId, route, method, HTTP status, durationMs, safe code, stage, upstreamStatus when available, environment. A bounded, same-origin, fixed-schema collector separates untrusted client reports from authoritative API events."
+  },
+  "validation": {
+    "commands": ["pnpm lint", "pnpm test", "pnpm build"],
+    "unitAndIntegrationTestsPassed": 28,
+    "lintErrors": 0,
+    "existingLintWarnings": 7,
+    "build": "passed",
+    "localBrowserChecksPassed": 14,
+    "previewBrowserChecksPassedBeforeFinalAuthUiEnhancement": 15,
+    "browserTool": "External Playwright QA installation; no application dependency or lockfile changes.",
+    "applicationRecordHandling": "Browser tests intercept all resume/education/work reads and writes with synthetic fixtures. Successful auth/session/password/cookie tests use Better Auth memoryAdapter; live origin probes use a nonexistent synthetic account."
+  },
+  "previewEvidence": {
+    "deploymentId": "dpl_EucJfRzT3ydingjXyZ1fXHcoJC1f",
+    "sourceCommit": "a4e8c1f8dbe6855845dda01ef033e29a2cb977a7",
+    "url": "https://carrime-e3dwu6b67-acrou-pro.vercel.app",
+    "realGeneration": {"correlationId": "0f6b1606-91dd-4006-95ef-18488c11ae78", "status": 200, "upstreamStatus": 200, "durationMs": 11743, "generatedCharacters": 443},
+    "pairedServerAndClient": {"correlationId": "509fff79-3c4e-434b-8824-1a16a8fac1b3", "status": 400, "code": "INVALID_INPUT", "events": ["api.completed", "client.ai_failed"]},
+    "simulatedClientOnly": {"correlationId": "00ba3a5e-c256-4516-8487-cb623f91f484", "code": "CLIENT_NETWORK_ERROR", "event": "client.ai_failed", "stage": "network"},
+    "authRejection": {"correlationId": "f6ee8248-e977-4837-b158-5363a19a541a", "status": 403, "code": "INVALID_ORIGIN"}
+  },
+  "productionSettingsAfterApproval": [
+    {"variable": "CRM_AUTH_URL", "target": "production", "expected": "https://www.carrime.app", "action": "Already correct; keep unchanged."},
+    {"variable": "APP_BASE_URL", "target": "production", "expected": "https://www.carrime.app", "action": "Update after approval. Existing shared Preview/Production entry must be split so Preview is not implicitly changed. This also corrects CRM links in notification emails."},
+    {"variable": "CRM_AUTH_URL", "target": "preview", "action": "Not required by this implementation; exact VERCEL_URL and VERCEL_BRANCH_URL supply allowed Preview origins."},
+    {"variable": "GEMINI_MODEL / GEMINI_API_KEY", "target": "production and preview", "action": "No change required by current successful generation checks."}
+  ],
+  "operationalRunbook": [
+    "Ask the affected user for the on-screen correlation ID and approximate JST time; never ask them to paste interview text, cookies or API keys.",
+    "In Vercel Logs, select the intended environment/deployment, then search the exact correlation ID. Inspect code, stage, status, upstreamStatus and durationMs.",
+    "CLI example: vercel logs --project carrime --scope team_iUkUC3QEpyNBJ2z1OxwMIZwh --no-branch --environment production --since 30m --query CORRELATION_ID --json --limit 20",
+    "api.completed is authoritative server execution. client.ai_failed is an untrusted browser hint. CLIENT_NETWORK_ERROR without an API event can indicate failure before API arrival or an interrupted response; it does not prove the server never executed.",
+    "Use upstreamStatus 401/403 for provider credentials/permissions, 404 for model configuration, 402/429 for quota/rate conditions, 5xx/timeouts for provider availability. Do not change models or billing solely from a generic browser alert.",
+    "Fully offline browsers cannot deliver telemetry; the on-screen ID and retained input still help manual support. Reporting is best-effort, has no background queue and never recursively retries.",
+    "Monitoring consists of correlated runtime logs and limited client reports. No external monitoring service, scheduled poll, paid log drain or notification automation is installed by this PR."
+  ],
+  "remainingWorkAfterApproval": [
+    "Approve the Draft PR and the Production-only APP_BASE_URL update separately from any Preview configuration.",
+    "Merge through GitHub and wait for Vercel production readiness; do not promote a Preview deployment directly.",
+    "On the canonical production domain, confirm a real administrator login/session/logout without exposing credentials, then perform a synthetic AI smoke test and correlation lookup.",
+    "Old-origin unsent localStorage data cannot be read automatically from the new origin. Any recovery/export flow requires a separately reviewed migration mechanism. Existing server records and schemas are untouched."
+  ],
+  "sources": [
+    "https://better-auth.com/docs/reference/options",
+    "https://better-auth.com/docs/reference/security",
+    "https://ai.google.dev/gemini-api/docs/api-errors"
+  ]
+}

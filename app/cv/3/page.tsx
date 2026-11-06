@@ -10,7 +10,7 @@ import { BRAND_STORAGE_KEYS, getStorageItemWithLegacyFallback } from '@/lib/stor
 import { useAiGeneration } from '@/lib/ai/use-ai-generation';
 import { AiErrorNotice } from '@/components/ui/AiErrorNotice';
 import { newCorrelationId } from '@/lib/observability/correlation';
-import type { ClientFailure } from '@/lib/ai/client';
+import { reportClientFailure, type AiRoute, type ClientFailure } from '@/lib/ai/client';
 
 const PROFILE_PHOTO_MAX_LONG_EDGE = 1400;
 const PROFILE_PHOTO_TARGET_MAX_BYTES = 900 * 1024;
@@ -234,17 +234,21 @@ export default function CVStep3() {
     }).join('\n');
   };
 
+  const showInputError = (route: AiRoute, message: string) => {
+    const failure = { code: 'INVALID_INPUT', correlationId: newCorrelationId(), retryable: false, message };
+    setAiInputError(failure);
+    reportClientFailure(route, failure);
+  };
+
   const generateSummary = async () => {
     setAiInputError(null);
     if (!fullData || !fullData.works || fullData.works.length === 0) {
-      setAiInputError({ code: 'INVALID_INPUT', correlationId: newCorrelationId(), retryable: false,
-        message: '職歴データが0件です。職歴の画面でデータを追加してください。' });
+      showInputError('/api/ai/summary', '職歴データが0件です。職歴の画面でデータを追加してください。');
       return;
     }
     const careerText = buildCareerText();
     if (careerText.replace(/\s/g, '').length < 10) {
-      setAiInputError({ code: 'INVALID_INPUT', correlationId: newCorrelationId(), retryable: false,
-        message: '職歴の内容が不足しています。職歴の入力を確認してください。' });
+      showInputError('/api/ai/summary', '職歴の内容が不足しています。職歴の入力を確認してください。');
       return;
     }
     const result = await summaryAI.generate({ career_text: careerText });
@@ -254,15 +258,13 @@ export default function CVStep3() {
   const generateExperienceKnowledge = async () => {
     setAiInputError(null);
     if (!fullData || !fullData.works || fullData.works.length === 0) {
-      setAiInputError({ code: 'INVALID_INPUT', correlationId: newCorrelationId(), retryable: false,
-        message: '職歴データが0件です。職歴の画面でデータを追加してください。' });
+      showInputError('/api/ai/experience', '職歴データが0件です。職歴の画面でデータを追加してください。');
       return;
     }
 
     const careerText = buildCareerText();
     if (careerText.replace(/\s/g, '').length < 10) {
-      setAiInputError({ code: 'INVALID_INPUT', correlationId: newCorrelationId(), retryable: false,
-        message: '職務内容が空のため生成できません。職歴を確認してください。' });
+      showInputError('/api/ai/experience', '職務内容が空のため生成できません。職歴を確認してください。');
       return;
     }
 
@@ -296,7 +298,7 @@ export default function CVStep3() {
       setIsSummarySavedForPdf(true);
       alert('保存しました！下のボタンからPDFをダウンロードできます。');
 
-    } catch (error) {
+    } catch {
       alert('保存失敗');
     }
   };
