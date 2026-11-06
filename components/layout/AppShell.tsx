@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import React from 'react';
+import { BrandLogo } from '@/components/ui/BrandLogo';
 
 interface AppShellProps {
   title?: string;
@@ -16,9 +17,9 @@ export const AppShell = ({ title, footer, children }: AppShellProps) => {
         <div className="flex h-14 w-full items-center justify-between px-4">
           <Link
             href="/"
-            className="text-lg font-semibold tracking-tight text-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            className="shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
           >
-            Carrime
+            <BrandLogo className="h-11 w-auto" />
           </Link>
           {title ? (
             <p className="ml-4 flex-1 truncate text-right text-sm font-medium text-gray-700">
