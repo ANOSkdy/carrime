@@ -46,6 +46,16 @@ async function call(path, payload, { origin = base.origin, correlationId = rando
   assert.equal((await call('/api/telemetry/ai', { route: '/api/ai/selfpr', code: 'CLIENT_NETWORK_ERROR', correlationId: clientOnlyId })).res.status, 204);
   const rejectExtra = await call('/api/telemetry/ai', { route: '/api/ai/selfpr', code: 'CLIENT_NETWORK_ERROR', correlationId: randomUUID(), input: 'Synthetic input must not be accepted' });
   assert.equal(rejectExtra.res.status, 400);
+  if (process.env.CARRIME_LIVE_RELATED_AI === '1') {
+    const synthetic = '架空の検証データです。事務職として資料作成、問い合わせ対応、業務手順の標準化を担当しました。';
+    for (const kind of ['summary', 'experience']) {
+      const generated = await call(`/api/ai/${kind}`, { [kind === 'summary' ? 'career_text' : 'experience_text']: synthetic });
+      const value = await generated.res.json();
+      assert.equal(generated.res.status, 200);
+      assert.ok(typeof value.result === 'string' && value.result.length > 0);
+      console.log(JSON.stringify({ route: `/api/ai/${kind}`, status: 200, correlationId: value.correlationId, generatedCharacters: value.result.length }));
+    }
+  }
   console.log(JSON.stringify({ authOriginAccepted: true, untrustedOriginRejected: true,
     hostOnlySecureCookieAttributes: true, serverAndClientCorrelationId: body.correlationId, clientOnlyCorrelationId: clientOnlyId,
     authCorrelationId: refused.correlationId, invalidAiStatus: invalid.res.status,

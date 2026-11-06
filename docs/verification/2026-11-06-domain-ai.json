@@ -36,7 +36,11 @@
     "observability": "Remove prompt/experience/strengths/keywords logs and raw exception output from all three AI routes. Record timestamp, correlationId, route, method, HTTP status, durationMs, safe code, stage, upstreamStatus when available, environment. A bounded, same-origin, fixed-schema collector separates untrusted client reports from authoritative API events."
   },
   "validation": {
-    "commands": ["pnpm lint", "pnpm test", "pnpm build"],
+    "commands": [
+      "pnpm lint",
+      "pnpm test",
+      "pnpm build"
+    ],
     "unitAndIntegrationTestsPassed": 28,
     "lintErrors": 0,
     "existingLintWarnings": 7,
@@ -44,22 +48,64 @@
     "localBrowserChecksPassed": 14,
     "previewBrowserChecksPassedBeforeFinalAuthUiEnhancement": 15,
     "browserTool": "External Playwright QA installation; no application dependency or lockfile changes.",
-    "applicationRecordHandling": "Browser tests intercept all resume/education/work reads and writes with synthetic fixtures. Successful auth/session/password/cookie tests use Better Auth memoryAdapter; live origin probes use a nonexistent synthetic account."
+    "applicationRecordHandling": "Browser tests intercept all resume/education/work reads and writes with synthetic fixtures. Successful auth/session/password/cookie tests use Better Auth memoryAdapter; live origin probes use a nonexistent synthetic account.",
+    "previewBrowserChecksPassed": 16
   },
   "previewEvidence": {
     "deploymentId": "dpl_EucJfRzT3ydingjXyZ1fXHcoJC1f",
     "sourceCommit": "a4e8c1f8dbe6855845dda01ef033e29a2cb977a7",
     "url": "https://carrime-e3dwu6b67-acrou-pro.vercel.app",
-    "realGeneration": {"correlationId": "0f6b1606-91dd-4006-95ef-18488c11ae78", "status": 200, "upstreamStatus": 200, "durationMs": 11743, "generatedCharacters": 443},
-    "pairedServerAndClient": {"correlationId": "509fff79-3c4e-434b-8824-1a16a8fac1b3", "status": 400, "code": "INVALID_INPUT", "events": ["api.completed", "client.ai_failed"]},
-    "simulatedClientOnly": {"correlationId": "00ba3a5e-c256-4516-8487-cb623f91f484", "code": "CLIENT_NETWORK_ERROR", "event": "client.ai_failed", "stage": "network"},
-    "authRejection": {"correlationId": "f6ee8248-e977-4837-b158-5363a19a541a", "status": 403, "code": "INVALID_ORIGIN"}
+    "realGeneration": {
+      "correlationId": "0f6b1606-91dd-4006-95ef-18488c11ae78",
+      "status": 200,
+      "upstreamStatus": 200,
+      "durationMs": 11743,
+      "generatedCharacters": 443
+    },
+    "pairedServerAndClient": {
+      "correlationId": "509fff79-3c4e-434b-8824-1a16a8fac1b3",
+      "status": 400,
+      "code": "INVALID_INPUT",
+      "events": [
+        "api.completed",
+        "client.ai_failed"
+      ]
+    },
+    "simulatedClientOnly": {
+      "correlationId": "00ba3a5e-c256-4516-8487-cb623f91f484",
+      "code": "CLIENT_NETWORK_ERROR",
+      "event": "client.ai_failed",
+      "stage": "network"
+    },
+    "authRejection": {
+      "correlationId": "f6ee8248-e977-4837-b158-5363a19a541a",
+      "status": 403,
+      "code": "INVALID_ORIGIN"
+    }
   },
   "productionSettingsAfterApproval": [
-    {"variable": "CRM_AUTH_URL", "target": "production", "expected": "https://www.carrime.app", "action": "Already correct; keep unchanged."},
-    {"variable": "APP_BASE_URL", "target": "production", "expected": "https://www.carrime.app", "action": "Update after approval. Existing shared Preview/Production entry must be split so Preview is not implicitly changed. This also corrects CRM links in notification emails."},
-    {"variable": "CRM_AUTH_URL", "target": "preview", "action": "Not required by this implementation; exact VERCEL_URL and VERCEL_BRANCH_URL supply allowed Preview origins."},
-    {"variable": "GEMINI_MODEL / GEMINI_API_KEY", "target": "production and preview", "action": "No change required by current successful generation checks."}
+    {
+      "variable": "CRM_AUTH_URL",
+      "target": "production",
+      "expected": "https://www.carrime.app",
+      "action": "Already correct; keep unchanged."
+    },
+    {
+      "variable": "APP_BASE_URL",
+      "target": "production",
+      "expected": "https://www.carrime.app",
+      "action": "Update after approval. Existing shared Preview/Production entry must be split so Preview is not implicitly changed. This also corrects CRM links in notification emails."
+    },
+    {
+      "variable": "CRM_AUTH_URL",
+      "target": "preview",
+      "action": "Not required by this implementation; exact VERCEL_URL and VERCEL_BRANCH_URL supply allowed Preview origins."
+    },
+    {
+      "variable": "GEMINI_MODEL / GEMINI_API_KEY",
+      "target": "production and preview",
+      "action": "No change required by current successful generation checks."
+    }
   ],
   "operationalRunbook": [
     "Ask the affected user for the on-screen correlation ID and approximate JST time; never ask them to paste interview text, cookies or API keys.",
@@ -80,5 +126,129 @@
     "https://better-auth.com/docs/reference/options",
     "https://better-auth.com/docs/reference/security",
     "https://ai.google.dev/gemini-api/docs/api-errors"
+  ],
+  "finalPreview": {
+    "deploymentId": "dpl_HQb5TbpsgiX6yG5UNswZ759JRu9v",
+    "sourceCommit": "144712cd8bd1eab6c8c7ad090e4c8bb88c4433a4",
+    "url": "https://carrime-7in6ypqsd-acrou-pro.vercel.app",
+    "selfprGeneratedCharacters": 409,
+    "summaryGeneratedCharacters": 232,
+    "experienceGeneratedCharacters": 230,
+    "structuredLogs": [
+      {
+        "timestamp": "2026-11-06T13:26:25.399Z",
+        "event": "api.completed",
+        "correlationId": "60e2ff9a-4e15-4dae-bab7-84e8ebadae70",
+        "route": "/api/ai/experience",
+        "method": "POST",
+        "status": 200,
+        "durationMs": 6567,
+        "code": "OK",
+        "stage": "response",
+        "upstreamStatus": 200,
+        "environment": "preview"
+      },
+      {
+        "timestamp": "2026-11-06T13:26:18.516Z",
+        "event": "api.completed",
+        "correlationId": "33c81ce1-db14-4f54-b086-5e5356b78bb2",
+        "route": "/api/ai/summary",
+        "method": "POST",
+        "status": 200,
+        "durationMs": 7161,
+        "code": "OK",
+        "stage": "response",
+        "upstreamStatus": 200,
+        "environment": "preview"
+      },
+      {
+        "timestamp": "2026-11-06T13:26:10.234Z",
+        "event": "api.completed",
+        "correlationId": "d23048c1-b0b8-42a2-84ee-c82026d0205a",
+        "route": "/api/ai/selfpr",
+        "method": "POST",
+        "status": 400,
+        "durationMs": 1,
+        "code": "INVALID_INPUT",
+        "stage": "validation",
+        "environment": "preview"
+      },
+      {
+        "timestamp": "2026-11-06T13:26:15.018Z",
+        "event": "api.completed",
+        "correlationId": "43d2f97c-5d94-42d1-b7fb-20744ea67670",
+        "route": "/api/ai/selfpr",
+        "method": "POST",
+        "status": 200,
+        "durationMs": 10169,
+        "code": "OK",
+        "stage": "response",
+        "upstreamStatus": 200,
+        "environment": "preview"
+      }
+    ],
+    "pairedServerAndClient": [
+      {
+        "timestamp": "2026-11-06T13:26:10.466Z",
+        "event": "client.ai_failed",
+        "correlationId": "d23048c1-b0b8-42a2-84ee-c82026d0205a",
+        "route": "/api/ai/selfpr",
+        "method": "POST",
+        "status": 400,
+        "durationMs": 0,
+        "code": "INVALID_INPUT",
+        "stage": "response",
+        "environment": "preview"
+      },
+      {
+        "timestamp": "2026-11-06T13:26:10.234Z",
+        "event": "api.completed",
+        "correlationId": "d23048c1-b0b8-42a2-84ee-c82026d0205a",
+        "route": "/api/ai/selfpr",
+        "method": "POST",
+        "status": 400,
+        "durationMs": 1,
+        "code": "INVALID_INPUT",
+        "stage": "validation",
+        "environment": "preview"
+      }
+    ]
+  },
+  "changedFiles": [
+    "app/api/ai/experience/route.ts",
+    "app/api/ai/selfpr/route.ts",
+    "app/api/ai/summary/route.ts",
+    "app/api/crm-auth/[...all]/route.ts",
+    "app/api/telemetry/ai/route.ts",
+    "app/crm/login/LoginForm.tsx",
+    "app/crm/password/PasswordForm.tsx",
+    "app/cv/1/page.tsx",
+    "app/cv/2/page.tsx",
+    "app/cv/3/page.tsx",
+    "components/ui/AiErrorNotice.tsx",
+    "docs/verification/2026-11-06-domain-ai.json",
+    "lib/ai/client.ts",
+    "lib/ai/contracts.ts",
+    "lib/ai/errors.ts",
+    "lib/ai/gemini.ts",
+    "lib/ai/handler.ts",
+    "lib/ai/prompts.ts",
+    "lib/ai/use-ai-generation.ts",
+    "lib/crm/auth-config.ts",
+    "lib/crm/auth-error.ts",
+    "lib/crm/auth-handler.ts",
+    "lib/crm/auth-origins.ts",
+    "lib/crm/auth.ts",
+    "lib/http/read-json.ts",
+    "lib/navigation/use-step-router.ts",
+    "lib/observability/api-log.ts",
+    "lib/observability/correlation.ts",
+    "lib/storage/ai-inputs.ts",
+    "scripts/verify-ai-browser.cjs",
+    "scripts/verify-preview-api.cjs",
+    "tests/ai.test.mjs",
+    "tests/auth-logging.test.mjs",
+    "tests/crm-auth.test.mjs",
+    "tests/helpers/register-ts.mjs"
   ]
 }
