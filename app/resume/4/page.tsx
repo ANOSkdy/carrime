@@ -11,6 +11,9 @@ import { PageIntro } from '@/components/layout/PageIntro';
 import { FormSection } from '@/components/layout/FormSection';
 import { stagger } from '@/lib/ui/stagger';
 import { BRAND_STORAGE_KEYS, getStorageItemWithLegacyFallback } from '@/lib/storage/branding';
+import type { ResumeWorkRow } from '@/lib/db/resume';
+import { loadResumeResource, mutateResumeResource } from '@/lib/storage/resume-resource';
+import { ensureResumeId } from '@/lib/storage/resume-save';
 
 type Work = {
   id?: string;
@@ -27,8 +30,9 @@ type Work = {
 
 export default function ResumeStep4() {
   const router = useStepRouter();
-  const [works, setWorks] = useState<Work[]>([]);
+  const [works, setWorks] = useState<Array<Work | ResumeWorkRow>>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const hintButtonClass =
     'inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-xs font-bold text-white shadow transition hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300';
@@ -55,12 +59,14 @@ export default function ResumeStep4() {
       router.push('/resume/1');
       return;
     }
-    fetch('/api/data/work?resumeId=' + resumeId)
-      .then(res => res.json())
+    let active = true;
+    loadResumeResource(resumeId, 'work')
       .then(data => {
-        if (data.works) setWorks(data.works);
+        if (active && data.works) setWorks(data.works);
       })
-      .finally(() => setLoading(false));
+      .catch(() => { if (active) setLoadError(true); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, [router]);
 
   const onAdd = async (data: Work) => {
@@ -77,7 +83,7 @@ export default function ResumeStep4() {
         end_month: sanitizedEndMonth,
         resume_id: resumeId,
       };
-      const res = await fetch('/api/data/work', {
+      const res = await mutateResumeResource(resumeId, '/api/data/work', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -86,7 +92,7 @@ export default function ResumeStep4() {
       if (!res.ok) throw new Error('追加失敗');
 
       const saved = await res.json();
-      setWorks([...works, { ...data, end_year: sanitizedEndYear, end_month: sanitizedEndMonth, id: saved.id }]);
+      setWorks(previous => [...previous, { ...data, end_year: sanitizedEndYear, end_month: sanitizedEndMonth, id: saved.id }]);
       reset();
 
     } catch (error) {
@@ -97,8 +103,9 @@ export default function ResumeStep4() {
   const onDelete = async (id: string) => {
     if(!confirm('削除しますか？')) return;
     try {
-      await fetch('/api/data/work?id=' + id, { method: 'DELETE' });
-      setWorks(works.filter(w => w.id !== id));
+      const resumeId = ensureResumeId();
+      await mutateResumeResource(resumeId, '/api/data/work?id=' + encodeURIComponent(id), { method: 'DELETE' });
+      setWorks(previous => previous.filter(w => w.id !== id));
     } catch (error) {
       alert('削除失敗');
     }
@@ -115,7 +122,8 @@ export default function ResumeStep4() {
       <FormSection index={0} title="登録済みの職歴">
       <div className="space-y-4">
         {loading && <p className="text-sm text-gray-400">職歴を読み込み中...</p>}
-        {!loading && works.length === 0 && <p className="text-gray-500">職歴はまだ登録されていません。</p>}
+        {loadError && <p role="alert" className="text-sm text-red-600">職歴を読み込めませんでした。前の画面で保存状態と接続を確認し、もう一度開いてください。</p>}
+        {!loading && !loadError && works.length === 0 && <p className="text-gray-500">職歴はまだ登録されていません。</p>}
         
         {works.map((work) => (
           <div key={work.id} className="p-4 border rounded bg-gray-50 space-y-3">

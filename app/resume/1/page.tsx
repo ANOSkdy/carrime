@@ -16,6 +16,7 @@ import { stagger } from '@/lib/ui/stagger';
 import { BRAND_STORAGE_KEYS, getStorageItemWithLegacyFallback } from '@/lib/storage/branding';
 import { isCompletePostalCode, normalizePostalCode } from '@/lib/address/postal-code';
 import { ensureResumeId, hasPendingResumeSave, retryPendingResumeSave, saveResumeInBackground } from '@/lib/storage/resume-save';
+import { loadResumeResource } from '@/lib/storage/resume-resource';
 
 const formSchema = ResumeSchema.omit({ user_id: true });
 
@@ -92,9 +93,7 @@ export default function ResumeStep1() {
 
     const loadResume = async () => {
       try {
-        const res = await fetch('/api/data/resume?id=' + resumeId);
-        if (!res.ok) return;
-        const data = await res.json();
+        const data = await loadResumeResource(resumeId, 'profile');
         if (!data.resume) return;
 
         const resume = data.resume;
