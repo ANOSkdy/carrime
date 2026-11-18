@@ -108,7 +108,7 @@ export default function CVStep2() {
           認識されているエピソード文字数: {inputs?.episode?.length || 0}文字
         </div>
         <Button onClick={generateAI} disabled={!inputs} isLoading={loading} size="sm" className="w-full sm:w-auto">
-          ✨ AIで自己PRを生成する
+          AIで自己PRを生成する
         </Button>
       </div>
       <AiErrorNotice error={pageError} preservesInput={false} showCorrelationId={pageError?.code === 'CLIENT_STORAGE_ERROR'} />

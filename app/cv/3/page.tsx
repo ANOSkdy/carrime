@@ -370,7 +370,7 @@ export default function CVStep3() {
            <p>登録されている職歴データ数: <strong>{worksCount}件</strong></p>
         </div>
         <Button onClick={generateSummary} isLoading={loadingAI} size="sm" className="bg-green-600 hover:bg-green-700">
-          🤖 AIで職務要約を書く
+          AIで職務要約を書く
         </Button>
         <AiErrorNotice error={summaryAI.error} onRetry={generateSummary} busy={loadingAI} />
       </div>
@@ -390,7 +390,7 @@ export default function CVStep3() {
               <p className="text-xs text-blue-700 mb-2">入力した職歴情報を元にAIが自動で生成します。</p>
             </div>
             <Button onClick={generateExperienceKnowledge} isLoading={loadingExperienceAI} size="sm" className="bg-blue-600 hover:bg-blue-700">
-              💡 AIで生成する
+              AIで生成する
             </Button>
           </div>
           <AiErrorNotice error={experienceAI.error} onRetry={generateExperienceKnowledge} busy={loadingExperienceAI} />
@@ -427,7 +427,8 @@ export default function CVStep3() {
       <hr className="my-8" />
 
       <div className="text-center p-8 border-2 border-dashed rounded-lg bg-gray-50">
-        <h3 className="text-lg font-bold mb-6">🎉 応募書類の準備ができました</h3>
+        <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.2em] text-gray-500">Ready</p>
+        <h3 className="mb-6 text-lg font-semibold tracking-wide text-gray-900">応募書類の準備ができました</h3>
         {fullData ? (
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <div className="text-center">
