@@ -26,7 +26,7 @@ export default function CVStep1() {
   const [storageError, setStorageError] = useState<ClientFailure | null>(null);
   const { register, handleSubmit, setValue } = useForm<AiInputData>();
   const hintButtonClass =
-    'inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-xs font-bold text-white shadow transition hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300';
+    'inline-flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 bg-white text-[11px] font-medium leading-none text-gray-500 transition-colors duration-[var(--motion-duration-fast)] ease-[var(--motion-ease-out)] hover:border-blue-600 hover:text-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600/30';
 
   useEffect(() => {
     // 以前の入力があればロード
@@ -73,6 +73,7 @@ export default function CVStep1() {
               type="button"
               onClick={() => setOpenHint('pr_summary')}
               aria-expanded={openHint === 'pr_summary'}
+              aria-label="回答例を見る"
               className={hintButtonClass}
             >
               ?
@@ -95,6 +96,7 @@ export default function CVStep1() {
               type="button"
               onClick={() => setOpenHint('episode')}
               aria-expanded={openHint === 'episode'}
+              aria-label="回答例を見る"
               className={hintButtonClass}
             >
               ?
@@ -117,6 +119,7 @@ export default function CVStep1() {
               type="button"
               onClick={() => setOpenHint('policy')}
               aria-expanded={openHint === 'policy'}
+              aria-label="回答例を見る"
               className={hintButtonClass}
             >
               ?
