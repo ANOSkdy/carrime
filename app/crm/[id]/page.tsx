@@ -23,7 +23,7 @@ const toNumber = (value: unknown) => {
 };
 
 const Tag = ({ children }: { children: React.ReactNode }) => (
-  <span className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-700">{children}</span>
+  <span className="whitespace-nowrap rounded-full bg-gray-100 px-2.5 py-0.5 text-xs leading-5 text-gray-700">{children}</span>
 );
 
 const toText = (value: unknown, fallback: string) =>
@@ -67,7 +67,7 @@ export default async function CrmDetailPage({
     });
     return (
       <AppShell title="CRM / 応募者詳細">
-        <div className="rounded-xl border border-red-200 bg-white p-4 text-sm text-red-600 shadow-sm">
+        <div className="mt-4 rounded-xl border border-red-200 bg-white p-4 text-sm text-red-600 shadow-sm">
           <p>不正なIDが指定されました。</p>
           <p>resume_id (raw): {resumeIdInfo.raw ?? 'undefined'}</p>
           <p>resume_id (normalized): {resumeIdInfo.normalized ?? 'undefined'}</p>
@@ -89,7 +89,7 @@ export default async function CrmDetailPage({
     });
     return (
       <AppShell title="CRM / 応募者詳細">
-        <div className="rounded-xl border border-red-200 bg-white p-4 text-sm text-red-600 shadow-sm">
+        <div className="mt-4 rounded-xl border border-red-200 bg-white p-4 text-sm text-red-600 shadow-sm">
           データ取得中にエラーが発生しました。{error?.message ?? ''} (Trace ID: {correlationId})
         </div>
       </AppShell>
@@ -101,7 +101,7 @@ export default async function CrmDetailPage({
     console.warn('CRM resume not found', { correlationId, resumeId });
     return (
       <AppShell title="CRM / 応募者詳細">
-        <div className="space-y-3">
+        <div className="space-y-3 py-4">
           <div className="rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-700 shadow-sm">
             <p>応募者が見つかりませんでした。</p>
             <p>resume_id: {resumeId}</p>
@@ -143,36 +143,52 @@ export default async function CrmDetailPage({
 
   return (
     <AppShell title="CRM / 応募者詳細">
-      <div className="lx lx-fade space-y-4">
-        <Link className="lx-link text-sm font-medium text-blue-600 hover:text-blue-700" href={returnTo}>
-          ← 一覧へ戻る
-        </Link>
+      <div className="lx lx-fade mx-auto max-w-5xl space-y-4 py-4">
+        <div className="flex items-center justify-between gap-3">
+          <Link
+            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-blue-600 shadow-sm transition-colors hover:bg-blue-50/40 hover:text-blue-700"
+            href={returnTo}
+          >
+            ← 一覧へ戻る
+          </Link>
+          {updatedAt ? <p className="lx-num truncate text-xs text-gray-400">更新日: {updatedAt}</p> : null}
+        </div>
 
-        <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
           <FormSection motion="none" index={0} title="プロフィール">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-2">
-              <h1 className="text-xl font-semibold text-gray-900">{nameKanji || '未入力'}</h1>
-              <div className="text-sm text-gray-600">
+          <div className="flex flex-col-reverse gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 space-y-3">
+              <h1 className="text-xl font-semibold tracking-[0.04em] text-gray-900">{nameKanji || '未入力'}</h1>
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
                 {resume.contactEmail ?? resume.email ? (
-                  <div>メール: {resume.contactEmail ?? resume.email}</div>
+                  <>
+                    <dt className="text-xs font-semibold leading-5 text-gray-500">メール</dt>
+                    <dd className="min-w-0 break-all text-gray-700">{resume.contactEmail ?? resume.email}</dd>
+                  </>
                 ) : null}
                 {resume.contactPhone ?? resume.phone_number ? (
-                  <div className="lx-num">電話: {resume.contactPhone ?? resume.phone_number}</div>
+                  <>
+                    <dt className="text-xs font-semibold leading-5 text-gray-500">電話</dt>
+                    <dd className="lx-num text-gray-700">{resume.contactPhone ?? resume.phone_number}</dd>
+                  </>
                 ) : null}
-                {resume.contactAddress ? <div>住所: {resume.contactAddress}</div> : null}
-              </div>
-              {updatedAt ? <p className="lx-num text-xs text-gray-400">更新日: {updatedAt}</p> : null}
+                {resume.contactAddress ? (
+                  <>
+                    <dt className="text-xs font-semibold leading-5 text-gray-500">住所</dt>
+                    <dd className="min-w-0 text-gray-700">{resume.contactAddress}</dd>
+                  </>
+                ) : null}
+              </dl>
             </div>
             {resume.profilePhotoUrl ? (
               <img
                 src={resume.profilePhotoUrl}
                 alt={`${nameKanji}のプロフィール写真`}
-                className="h-24 w-24 rounded-md border border-gray-200 object-cover"
+                className="h-24 w-24 shrink-0 rounded-md border border-gray-200 object-cover"
               />
             ) : null}
           </div>
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {resume.current_status ? <Tag>{resume.current_status}</Tag> : null}
             {resume.desired_occupations?.map((role) => (
               <Tag key={role}>{role}</Tag>
@@ -184,22 +200,22 @@ export default async function CrmDetailPage({
           </FormSection>
         </section>
 
-        <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="space-y-8">
           <FormSection motion="none" index={1} title="就業条件">
-          <div className="grid gap-4 text-sm text-gray-700 md:grid-cols-2">
+          <div className="grid gap-x-6 gap-y-4 text-sm leading-relaxed text-gray-700 md:grid-cols-2">
             <div>
-              <div className="text-sm font-bold text-gray-700">転職回数</div>
+              <div className="mb-1 text-xs font-semibold tracking-[0.08em] text-gray-500">転職回数</div>
               <div className="lx-num">{toDisplayNumber(resume.job_change_count, '未入力')}</div>
             </div>
             <div>
-              <div className="text-sm font-bold text-gray-700">入社希望時期</div>
+              <div className="mb-1 text-xs font-semibold tracking-[0.08em] text-gray-500">入社希望時期</div>
               <div>{toText(resume.desired_joining_date, '未入力')}</div>
             </div>
             <div className="md:col-span-2">
-              <div className="text-sm font-bold text-gray-700">資格・免許</div>
+              <div className="mb-1 text-xs font-semibold tracking-[0.08em] text-gray-500">資格・免許</div>
               {resume.licenses_qualifications && resume.licenses_qualifications.length > 0 ? (
-                <div className="mt-2 flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {resume.licenses_qualifications.map((license) => (
                     <Tag key={license}>{license}</Tag>
                   ))}
@@ -211,19 +227,19 @@ export default async function CrmDetailPage({
           </div>
           </FormSection>
           <FormSection motion="none" index={2} title="アピール">
-          <div className="grid gap-4 text-sm text-gray-700 md:grid-cols-2">
+          <div className="grid gap-x-6 gap-y-4 text-sm leading-relaxed text-gray-700 md:grid-cols-2">
             <div className="md:col-span-2">
-              <div className="text-sm font-bold text-gray-700">活かせる経験・スキル</div>
+              <div className="mb-1 text-xs font-semibold tracking-[0.08em] text-gray-500">活かせる経験・スキル</div>
               <p className="whitespace-pre-wrap">
                 {toText(resume.transferable_skills, '未入力')}
               </p>
             </div>
             <div className="md:col-span-2">
-              <div className="text-sm font-bold text-gray-700">自己PR</div>
+              <div className="mb-1 text-xs font-semibold tracking-[0.08em] text-gray-500">自己PR</div>
               <p className="whitespace-pre-wrap">{toText(resume.self_pr, '未入力')}</p>
             </div>
             <div className="md:col-span-2">
-              <div className="text-sm font-bold text-gray-700">要約</div>
+              <div className="mb-1 text-xs font-semibold tracking-[0.08em] text-gray-500">要約</div>
               <p className="whitespace-pre-wrap">{toText(resume.summary, '未入力')}</p>
             </div>
           </div>
@@ -231,9 +247,10 @@ export default async function CrmDetailPage({
           </div>
         </section>
 
-        <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="grid items-start gap-4 lg:grid-cols-2">
+        <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
           <FormSection motion="none" index={3} title={`学歴 ${sortedEducations.length}件`}>
-          <div className="space-y-3 text-sm text-gray-700">
+          <div className="space-y-2 text-sm text-gray-700">
             {sortedEducations.length === 0 ? (
               <p className="text-gray-500">学歴情報は登録されていません。</p>
             ) : (
@@ -261,9 +278,9 @@ export default async function CrmDetailPage({
           </FormSection>
         </section>
 
-        <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
           <FormSection motion="none" index={4} title={`職歴 ${sortedWorks.length}件`}>
-          <div className="space-y-3 text-sm text-gray-700">
+          <div className="space-y-2 text-sm text-gray-700">
             {sortedWorks.length === 0 ? (
               <p className="text-gray-500">職歴情報は登録されていません。</p>
             ) : (
@@ -288,7 +305,7 @@ export default async function CrmDetailPage({
                       {start || '開始時期未入力'} {end ? `〜 ${end}` : ''}
                     </div>
                     {tags.length > 0 ? (
-                      <div className="mt-2 flex flex-wrap gap-2">
+                      <div className="mt-2 flex flex-wrap gap-1.5">
                         {tags.map((tag: string) => (
                           <Tag key={tag}>{tag}</Tag>
                         ))}
@@ -301,6 +318,7 @@ export default async function CrmDetailPage({
           </div>
           </FormSection>
         </section>
+        </div>
       </div>
     </AppShell>
   );
